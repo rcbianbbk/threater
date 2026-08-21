@@ -1,6 +1,10 @@
 <?php
-session_start();
+$page_title = "Customer Bookings Report";
 include 'db.php';
+
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
 // Check if admin is logged in
 if (!isset($_SESSION['admin'])) {
@@ -9,128 +13,96 @@ if (!isset($_SESSION['admin'])) {
 }
 
 // Fetch all bookings with user and movie details
-$sql = "SELECT bookings.id, users.name AS user_name, users.email AS user_email, movies.title AS movie_title, movies.price, bookings.seat_number, bookings.booking_date 
-        FROM bookings 
-        JOIN users ON bookings.user_id = users.id 
-        JOIN movies ON bookings.movie_id = movies.id 
-        ORDER BY bookings.id DESC";
+$sql = "SELECT b.*, u.name AS user_name, u.email AS user_email, m.title AS movie_title, m.price AS movie_price
+        FROM bookings b
+        JOIN users u ON b.user_id = u.id 
+        JOIN movies m ON b.movie_id = m.id 
+        ORDER BY b.id DESC";
 
 $result = $conn->query($sql);
+
+include 'includes/header.php';
 ?>
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>View Bookings - Admin Dashboard</title>
-    <style>
-        * {
-            box-sizing: border-box;
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-        }
-        body {
-            background-color: #0f172a;
-            color: #f8fafc;
-            padding: 30px;
-        }
-        .container {
-            max-width: 1000px;
-            margin: 0 auto;
-            background: #1e293b;
-            padding: 25px;
-            border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-        }
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-            border-bottom: 2px solid #334155;
-            padding-bottom: 15px;
-        }
-        h2 {
-            color: #38bdf8;
-        }
-        .btn-back {
-            background: #3b82f6;
-            color: white;
-            text-decoration: none;
-            padding: 8px 16px;
-            border-radius: 6px;
-            font-weight: bold;
-        }
-        .btn-back:hover {
-            background: #2563eb;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 15px;
-        }
-        th, td {
-            padding: 12px 15px;
-            text-align: left;
-            border-bottom: 1px solid #334155;
-        }
-        th {
-            background-color: #0f172a;
-            color: #38bdf8;
-        }
-        tr:hover {
-            background-color: #334155;
-        }
-        .no-data {
-            text-align: center;
-            padding: 20px;
-            color: #94a3b8;
-        }
-    </style>
-</head>
-<body>
-
-<div class="container">
-    <div class="header">
-        <h2>📋 Customer Bookings Details</h2>
-        <a href="dashboard.php" class="btn-back">⬅ Back to Dashboard</a>
+<main class="container" style="margin-top: 25px; margin-bottom: 70px;">
+    
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; flex-wrap: wrap; gap: 15px;">
+        <div>
+            <h1 style="font-size: 28px; margin-bottom: 4px;">Customer Booking Records</h1>
+            <p style="color: var(--text-muted); font-size: 14px;">Detailed transaction log of all reservations and payments.</p>
+        </div>
+        <div style="display: flex; gap: 10px;">
+            <a href="dashboard.php" class="btn btn-outline">
+                <i class="fa-solid fa-gauge-high"></i> Admin Dashboard
+            </a>
+            <button onclick="window.print()" class="btn btn-accent">
+                <i class="fa-solid fa-print"></i> Print Report
+            </button>
+        </div>
     </div>
 
-    <table>
-        <thead>
-            <tr>
-                <th>Booking ID</th>
-                <th>Customer Name</th>
-                <th>Email</th>
-                <th>Movie Title</th>
-                <th>Seat Number</th>
-                <th>Price</th>
-                <th>Booking Date</th>
-            </tr>
-        </thead>
-        <tbody>
-            <?php if ($result && $result->num_rows > 0): ?>
-                <?php while ($row = $result->fetch_assoc()): ?>
+    <div class="glass-card" style="padding: 24px;">
+        <div class="table-responsive">
+            <table class="custom-table">
+                <thead>
                     <tr>
-                        <td>#<?php echo $row['id']; ?></td>
-                        <td><?php echo htmlspecialchars($row['user_name']); ?></td>
-                        <td><?php echo htmlspecialchars($row['user_email']); ?></td>
-                        <td><?php echo htmlspecialchars($row['movie_title']); ?></td>
-                        <td><strong style="color: #facc15;"><?php echo htmlspecialchars($row['seat_number']); ?></strong></td>
-                        <td>Rs. <?php echo htmlspecialchars($row['price']); ?></td>
-                        <td><?php echo $row['booking_date']; ?></td>
+                        <th>Booking ID</th>
+                        <th>Ticket Code</th>
+                        <th>Customer</th>
+                        <th>Movie Title</th>
+                        <th>Seats</th>
+                        <th>Showtime</th>
+                        <th>Total Paid</th>
+                        <th>Txn Reference</th>
+                        <th>Status</th>
+                        <th>Date</th>
                     </tr>
-                <?php endwhile; ?>
-            <?php else: ?>
-                <tr>
-                    <td colspan="7" class="no-data">कुनै पनि सिट बुक भएको छैन (No Bookings Found).</td>
-                </tr>
-            <?php endif; ?>
-        </tbody>
-    </table>
-</div>
+                </thead>
+                <tbody>
+                    <?php if ($result && $result->num_rows > 0): ?>
+                        <?php while ($row = $result->fetch_assoc()): 
+                            $ticket_code = $row['ticket_code'] ?: ('CW-' . str_pad($row['id'], 6, '0', STR_PAD_LEFT));
+                        ?>
+                            <tr>
+                                <td>#<?= $row['id'] ?></td>
+                                <td>
+                                    <a href="ticket.php?id=<?= $row['id'] ?>" target="_blank" style="color: #818cf8; font-weight: 700; font-family: 'Outfit';">
+                                        <?= htmlspecialchars($ticket_code) ?>
+                                    </a>
+                                </td>
+                                <td>
+                                    <strong><?= htmlspecialchars($row['user_name']) ?></strong>
+                                    <small style="display: block; color: var(--text-dim);"><?= htmlspecialchars($row['user_email']) ?></small>
+                                </td>
+                                <td><?= htmlspecialchars($row['movie_title']) ?></td>
+                                <td><strong style="color: var(--accent);"><?= htmlspecialchars($row['seat_number']) ?></strong></td>
+                                <td><?= htmlspecialchars($row['show_time'] ?? '05:30 PM') ?></td>
+                                <td><strong>Rs. <?= number_format($row['total_amount'] ?? $row['movie_price'], 2) ?></strong></td>
+                                <td>
+                                    <span style="font-family: monospace; background: #090d16; padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border-color); color: #38bdf8; font-size: 12px;">
+                                        <?= htmlspecialchars($row['transaction_id'] ?? 'N/A') ?>
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge-status" style="background: rgba(16,185,129,0.15); color: #34d399; border: 1px solid rgba(16,185,129,0.3);">
+                                        <?= htmlspecialchars($row['payment_status'] ?? 'Success') ?>
+                                    </span>
+                                </td>
+                                <td style="font-size: 12px; color: var(--text-dim);"><?= date('M d, Y', strtotime($row['booking_date'])) ?></td>
+                            </tr>
+                        <?php endwhile; ?>
+                    <?php else: ?>
+                        <tr>
+                            <td colspan="10" style="text-align: center; padding: 40px; color: var(--text-muted);">
+                                No customer booking records found.
+                            </td>
+                        </tr>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
+    </div>
 
-</body>
-</html>
+</main>
+
+<?php include 'includes/footer.php'; ?>
