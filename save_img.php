@@ -1,23 +1,45 @@
 <?php
-$conn = new mysqli("localhost", "root", "", "your_database_name");
+session_start();
+require_once 'db.php';
 
-if (isset($_POST['image'])) {
-    $imgData = $_POST['image'];
-    $imgData = str_replace('data:image/png;base64,', '', $imgData);
-    $imgData = str_replace(' ', '+', $imgData);
-    $data = base64_decode($imgData);
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $data = json_decode(file_get_contents('php://input'), true);
 
-    $fileName = 'ss_' . time() . '.png';
-    $filePath = 'uploads/' . $fileName;
+    if (isset($data['image'])) {
+        $imgData = $data['image'];
+        
+        // Base64 string bata header hataune
+        $imgData = str_replace('data:image/png;base64,', '', $imgData);
+        $imgData = str_replace('data:image/jpeg;base64,', '', $imgData);
+        $imgData = str_replace(' ', '+', $imgData);
+        
+        $decodedImage = base64_decode($imgData);
 
-    if (file_put_contents($filePath, $data)) {
-        // Filename lai Database ma insert garne
-        $stmt = $conn->prepare("INSERT INTO screenshots (image_path) VALUES (?)");
-        $stmt->bind_param("s", $fileName);
-        $stmt->execute();
-        echo "Screenshot Successfully Saved!";
+        // Uploads folder nabhaye banaune
+        if (!file_exists('uploads')) {
+            mkdir('uploads', 0777, true);
+        }
+
+        // Unique image name banaune
+        $fileName = 'receipt_' . time() . '_' . rand(1000, 9999) . '.png';
+        $filePath = 'uploads/' . $fileName;
+
+        if (file_put_contents($filePath, $decodedImage)) {
+            echo json_encode([
+                'status' => 'success',
+                'file_path' => $filePath
+            ]);
+        } else {
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'Failed to save image'
+            ]);
+        }
     } else {
-        echo "Failed to save image.";
+        echo json_encode([
+            'status' => 'error',
+            'message' => 'No image data provided'
+        ]);
     }
 }
 ?>

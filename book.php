@@ -2,148 +2,203 @@
 session_start();
 include 'db.php';
 
-if (!isset($_SESSION['user_id'])) { 
-    header("Location: user_login.php"); 
-    exit(); 
+// 1. User login check
+if (!isset($_SESSION['user_id'])) {
+    header("Location: user_login.php");
+    exit();
 }
 
-$movie_id = intval($_GET['movie_id'] ?? 0);
-$movie = $conn->query("SELECT * FROM movies WHERE id = $movie_id")->fetch_assoc();
+$user_id = $_SESSION['user_id'];
 
-// Booked Seats
-$booked_seats = [];
-$res = $conn->query("SELECT seat_number FROM bookings WHERE movie_id = $movie_id");
-if ($res) {
-    while ($row = $res->fetch_assoc()) {
-        $booked_seats[] = $row['seat_number'];
-    }
+// Movie ID check from URL parameter
+$movie_id = isset($_GET['movie_id']) ? intval($_GET['movie_id']) : 0;
+$movie_query = $conn->query("SELECT * FROM movies WHERE id = $movie_id");
+$movie = $movie_query->fetch_assoc();
+
+if (!$movie) {
+    header("Location: index.php");
+    exit();
 }
 
-$msg = "";
-$err = "";
+$error = "";
 
-if (isset($_POST['book'])) {
-    $selected_seat = trim($_POST['seat']);
-    $payment_method = $_POST['payment_method'] ?? 'QR Code';
-    $txn_id = trim($_POST['transaction_id']);
-
-    if (empty($selected_seat)) {
-        $err = "कृपया पहिले सिट रोज्नुहोस्!";
-    } elseif (empty($txn_id)) {
-        $err = "कृपया भुक्तानी गरिसकेपछि Transaction ID / Ref ID राख्नुहोस्!";
+// 2. Form submit huda execute hune code (Seat + Screenshot Processing)
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $selected_seats = isset($_POST['seats']) ? trim($_POST['seats']) : '';
+    
+    // Validation: Seat check
+    if (empty($selected_seats)) {
+        $error = "Please select at least one seat!";
+    } 
+    // Validation: Payment Screenshot upload check
+    elseif (!isset($_FILES['payment_screenshot']) || $_FILES['payment_screenshot']['error'] != 0) {
+        $error = "Please upload your payment screenshot!";
     } else {
-        $stmt = $conn->prepare("INSERT INTO bookings (user_id, movie_id, seat_number, payment_method, payment_status, transaction_id) VALUES (?, ?, ?, ?, 'Success', ?)");
-        $stmt->bind_param("iisss", $_SESSION['user_id'], $movie_id, $selected_seat, $payment_method, $txn_id);
+        // 3. Handle Payment Screenshot Image Upload & Save
+        $img_name = $_FILES['payment_screenshot']['name'];
+        $tmp_name = $_FILES['payment_screenshot']['tmp_name'];
+        $ext = pathinfo($img_name, PATHINFO_EXTENSION);
         
-        if ($stmt->execute()) {
-            $msg = "🎉 Payment Verified & Ticket Booked Successfully! (Txn ID: " . htmlspecialchars($txn_id) . ")";
-            $booked_seats[] = $selected_seat;
+        // Unique file name generate garne taaki file name clash na hos
+        $new_img_name = "pay_" . uniqid() . "." . $ext;
+        
+        // Uploads folder xena vane automatically create garne
+        if (!is_dir('uploads')) {
+            mkdir('uploads', 0777, true);
+        }
+        
+        $upload_path = "uploads/" . $new_img_name;
+
+        // Move file to uploads folder & save booking to database
+        if (move_uploaded_file($tmp_name, $upload_path)) {
+            // Database ma insert garne (transaction_id column ma screenshot filename save huncha)
+            $stmt = $conn->prepare("INSERT INTO bookings (user_id, movie_id, seats, transaction_id, status) VALUES (?, ?, ?, ?, 'Pending')");
+            $stmt->bind_param("iiss", $user_id, $movie_id, $selected_seats, $new_img_name);
+            
+            if ($stmt->execute()) {
+                header("Location: profile.php?booked=success");
+                exit();
+            } else {
+                $error = "Database error! Please try again.";
+            }
         } else {
-            $err = "Booking गर्न सकिएन! पुनः प्रयास गर्नुहोस्।";
+            $error = "Failed to upload payment screenshot image.";
         }
     }
 }
 ?>
 <!DOCTYPE html>
-<html lang="ne">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Book & Pay - Cinema World</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cinema World - Book Seats & Pay</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
-        body { background: #0b0f19; color: #f8fafc; min-height: 100vh; padding: 30px 20px; display: flex; justify-content: center; align-items: center; }
-        .booking-container { background: #1e293b; border-radius: 16px; border: 1px solid #334155; padding: 30px; max-width: 500px; width: 100%; box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-align: center; }
-        h2 { color: #38bdf8; margin-bottom: 5px; }
-        .movie-info { color: #94a3b8; font-size: 15px; margin-bottom: 20px; }
-        
-        .screen { background: linear-gradient(180deg, #38bdf8, transparent); height: 8px; width: 80%; margin: 0 auto 20px; border-radius: 50%; box-shadow: 0 10px 20px rgba(56, 189, 248, 0.4); }
-        .screen-text { font-size: 11px; color: #64748b; letter-spacing: 2px; margin-bottom: 15px; }
+        :root {
+            --primary: #38bdf8;
+            --primary-glow: rgba(56, 189, 248, 0.4);
+            --accent: #818cf8;
+            --bg-dark: #030712;
+            --card-bg: rgba(17, 24, 39, 0.75);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif; }
+        body { background: var(--bg-dark); color: #f8fafc; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 40px 20px; }
 
-        .seats-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; max-width: 360px; margin: 0 auto 20px; }
-        .seat { background: #0f172a; border: 1px solid #334155; color: #f8fafc; padding: 10px 0; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s; font-size: 14px; }
-        .seat:hover:not(.booked) { background: #38bdf8; color: #0f172a; }
-        .seat.selected { background: #22c55e !important; color: white !important; border-color: #22c55e !important; }
-        .seat.booked { background: #ef4444; color: white; border-color: #ef4444; cursor: not-allowed; opacity: 0.5; }
+        .booking-container {
+            background: var(--card-bg); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 35px; border-radius: 28px; width: 100%; max-width: 500px; box-shadow: 0 25px 50px rgba(0, 0, 0, 0.8);
+        }
+        .header-title { text-align: center; margin-bottom: 25px; }
+        .header-title h2 { font-size: 24px; font-weight: 900; color: #fff; }
+        .header-title span { color: var(--primary); }
 
-        /* Payment & Transaction Input Box */
-        .payment-box { background: #0f172a; border: 1px solid #334155; border-radius: 10px; padding: 15px; margin: 20px 0; }
-        .qr-img { width: 140px; height: 140px; border-radius: 8px; border: 2px solid #38bdf8; margin: 10px auto; display: block; background: white; padding: 5px; }
-        
-        .form-group { margin-top: 15px; text-align: left; }
-        .form-group label { display: block; font-size: 12px; color: #94a3b8; margin-bottom: 5px; }
-        .form-group input { width: 100%; padding: 10px; background: #1e293b; border: 1px solid #334155; border-radius: 6px; color: white; font-size: 14px; outline: none; }
-        .form-group input:focus { border-color: #38bdf8; }
+        .screen-indicator {
+            background: linear-gradient(90deg, transparent, var(--primary-glow), transparent);
+            text-align: center; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px;
+            color: #94a3b8; padding: 6px; margin-bottom: 20px; border-radius: 6px;
+        }
 
-        .btn-confirm { width: 100%; padding: 14px; background: #22c55e; color: white; border: none; border-radius: 8px; font-weight: bold; font-size: 16px; cursor: pointer; transition: 0.3s; margin-top: 10px; }
-        .btn-confirm:hover { background: #16a34a; }
-        
-        .msg { background: rgba(74, 222, 128, 0.1); color: #4ade80; border: 1px solid #4ade80; padding: 10px; border-radius: 8px; margin-bottom: 15px; font-size: 14px; }
-        .err { background: rgba(248, 113, 113, 0.1); color: #f87171; border: 1px solid #f87171; padding: 10px; border-radius: 8px; margin-bottom: 15px; font-size: 14px; }
-        .back-link { display: block; margin-top: 15px; color: #94a3b8; text-decoration: none; font-size: 14px; }
+        .seats-grid {
+            display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin-bottom: 25px;
+        }
+        .seat-btn {
+            background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #fff; padding: 12px 0; border-radius: 10px; font-weight: 700; font-size: 13px;
+            cursor: pointer; text-align: center; transition: 0.2s; user-select: none;
+        }
+        .seat-btn:hover { border-color: var(--primary); }
+        .seat-btn.selected { background: var(--primary); color: #0f172a; border-color: var(--primary); box-shadow: 0 0 12px var(--primary-glow); }
+
+        .payment-box {
+            background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 20px; border-radius: 20px; margin-bottom: 20px; text-align: center;
+        }
+        .qr-img { width: 140px; height: 140px; border-radius: 12px; background: #fff; padding: 8px; margin: 10px auto; display: block; object-fit: contain; }
+
+        .form-group { margin-bottom: 15px; text-align: left; }
+        .form-group label { display: block; font-size: 13px; font-weight: 700; color: #94a3b8; margin-bottom: 6px; }
+        .file-input {
+            width: 100%; padding: 10px; background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; color: #fff; font-size: 13px; outline: none; cursor: pointer;
+        }
+
+        .btn-submit {
+            width: 100%; background: linear-gradient(135deg, #10b981, #059669); color: #fff;
+            font-weight: 800; font-size: 15px; padding: 14px; border-radius: 14px; border: none; cursor: pointer;
+            transition: 0.3s; box-shadow: 0 8px 20px rgba(16, 185, 129, 0.4); display: flex; align-items: center; justify-content: center; gap: 8px;
+        }
+        .btn-submit:hover { transform: scale(1.02); }
+        .error-msg { background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); color: #f87171; padding: 10px; border-radius: 10px; font-size: 13px; font-weight: 600; margin-bottom: 15px; text-align: center; }
+        .back-link { display: block; text-align: center; color: #94a3b8; text-decoration: none; font-size: 13px; font-weight: 600; margin-top: 15px; }
+        .back-link:hover { color: #fff; }
     </style>
 </head>
 <body>
 
-<div class="booking-container">
-    <h2>🎟 Select Seat & Pay</h2>
-    <?php if($movie): ?>
-        <p class="movie-info"><?= htmlspecialchars($movie['title']) ?> | <strong>Rs. <?= number_format($movie['price'], 2) ?></strong></p>
-    <?php endif; ?>
-
-    <?php if($msg != "") echo "<div class='msg'>$msg</div>"; ?>
-    <?php if($err != "") echo "<div class='err'>$err</div>"; ?>
-
-    <div class="screen"></div>
-    <p class="screen-text">SCREEN THIS WAY</p>
-
-    <!-- Seats Grid -->
-    <div class="seats-grid">
-        <?php 
-        $rows = ['A', 'B', 'C', 'D'];
-        for ($r = 0; $r < count($rows); $r++) {
-            for ($s = 1; $s <= 6; $s++) {
-                $seat_id = $rows[$r] . $s;
-                $is_booked = in_array($seat_id, $booked_seats);
-                $class = $is_booked ? 'seat booked' : 'seat';
-                echo "<div class='$class' data-seat='$seat_id'>$seat_id</div>";
-            }
-        }
-        ?>
-    </div>
-
-    <form method="POST">
-        <input type="hidden" name="seat" id="selected_seat_input" required>
-        
-        <!-- QR & Payment Transaction Entry -->
-        <div class="payment-box">
-            <p style="color:#38bdf8; font-weight:bold;">📲 Scan QR to Pay (eSewa/Khalti)</p>
-            <img src="https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=CinemaWorld_Pay_Rs<?= $movie['price'] ?? 0 ?>" class="qr-img" alt="Payment QR Code">
-            
-            <div class="form-group">
-                <label>Transaction ID / Ref Code (eSewa/Khalti):</label>
-                <input type="text" name="transaction_id" placeholder="Ex: TXN12345678" required>
-            </div>
-            <input type="hidden" name="payment_method" value="QR Code">
+    <div class="booking-container">
+        <div class="header-title">
+            <h2>Select Seat & Pay</h2>
+            <p style="color: #64748b; font-size: 13px; font-weight: 600; margin-top: 4px;"><?= htmlspecialchars($movie['title']) ?> (NPR <?= number_format($movie['price'], 2) ?>)</p>
         </div>
 
-        <button type="submit" name="book" class="btn-confirm">✅ Submit & Verify Payment</button>
-    </form>
+        <?php if(!empty($error)): ?>
+            <div class="error-msg"><?= $error ?></div>
+        <?php endif; ?>
 
-    <a href="index.php" class="back-link">⬅ Back to Home</a>
-</div>
+        <!-- Form with enctype multipart for image file upload -->
+        <form action="" method="POST" enctype="multipart/form-data">
+            <div class="screen-indicator">Screen This Way</div>
 
-<script>
-    const seats = document.querySelectorAll('.seat:not(.booked)');
-    const seatInput = document.getElementById('selected_seat_input');
+            <!-- Seat Grid Selection -->
+            <div class="seats-grid" id="seatsGrid">
+                <?php 
+                $rows = ['A', 'B', 'C', 'D'];
+                foreach($rows as $r) {
+                    for($i = 1; $i <= 6; $i++) {
+                        $seatName = $r.$i;
+                        echo '<div class="seat-btn" onclick="toggleSeat(this, \'' . $seatName . '\')">' . $seatName . '</div>';
+                    }
+                }
+                ?>
+            </div>
 
-    seats.forEach(seat => {
-        seat.addEventListener('click', () => {
-            seats.forEach(s => s.classList.remove('selected'));
-            seat.classList.add('selected');
-            seatInput.value = seat.getAttribute('data-seat');
-        });
-    });
-</script>
+            <input type="hidden" name="seats" id="selectedSeatsInput">
+
+            <!-- Payment Box with QR and Screenshot File Upload -->
+            <div class="payment-box">
+                <p style="font-size: 13px; font-weight: 700; color: #fff;"><i class="fa-solid fa-qrcode" style="color: var(--primary);"></i> Scan QR to Pay (eSewa / Khalti)</p>
+                <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=esewa_payment_dummy" alt="Payment QR" class="qr-img">
+                
+                <div class="form-group">
+                    <label><i class="fa-solid fa-image" style="color: var(--primary);"></i> Upload Payment Screenshot:</label>
+                    <input type="file" name="payment_screenshot" accept="image/*" required class="file-input">
+                </div>
+            </div>
+
+            <button type="submit" class="btn-submit">
+                <i class="fa-solid fa-shield-check"></i> Submit & Verify Payment
+            </button>
+        </form>
+
+        <a href="index.php" class="back-link">← Back to Home</a>
+    </div>
+
+    <script>
+    let selectedSeats = [];
+
+    function toggleSeat(element, seatName) {
+        if (element.classList.contains('selected')) {
+            element.classList.remove('selected');
+            selectedSeats = selectedSeats.filter(s => s !== seatName);
+        } else {
+            element.classList.add('selected');
+            selectedSeats.push(seatName);
+        }
+        document.getElementById('selectedSeatsInput').value = selectedSeats.join(',');
+    }
+    </script>
 
 </body>
 </html>
