@@ -1,12 +1,30 @@
 <?php
-session_start();
+$page_title = "Admin Login";
+include 'db.php';
+
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+// If already logged in as admin, redirect to dashboard
+if (isset($_SESSION['admin'])) {
+    header("Location: dashboard.php");
+    exit();
+}
+
+$error = "";
+
 if (isset($_POST['login'])) {
-    if ($_POST['username'] === 'admin' && $_POST['password'] === 'admin123') {
+    $username = trim($_POST['username']);
+    $password = $_POST['password'];
+
+    // Admin authentication
+    if ($username === 'admin' && $password === 'admin123') {
         $_SESSION['admin'] = true;
         header("Location: dashboard.php");
         exit();
     } else {
-        $error = "Invalid Admin Credentials!";
+        $error = "Invalid administrator credentials!";
     }
 }
 ?>
@@ -14,38 +32,59 @@ if (isset($_POST['login'])) {
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Admin Login - Cinema World</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
-        body { background-color: #0b0f19; color: #f8fafc; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
-        .box { background: #1e293b; padding: 40px; border-radius: 16px; border: 1px solid #334155; width: 100%; max-width: 380px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-        .box h2 { text-align: center; color: #38bdf8; margin-bottom: 8px; }
-        .box p.sub { text-align: center; color: #64748b; font-size: 14px; margin-bottom: 25px; }
-        .form-group { margin-bottom: 18px; }
-        label { display: block; font-size: 13px; color: #94a3b8; margin-bottom: 6px; }
-        input { width: 100%; padding: 12px; background: #0f172a; border: 1px solid #334155; border-radius: 8px; color: white; outline: none; }
-        input:focus { border-color: #38bdf8; }
-        button { width: 100%; padding: 12px; background: #38bdf8; color: #0f172a; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 10px; transition: 0.3s; }
-        button:hover { background: #0284c7; color: white; }
-        .error { background: rgba(248, 113, 113, 0.1); color: #f87171; border: 1px solid #f87171; padding: 10px; border-radius: 8px; font-size: 13px; margin-bottom: 15px; text-align: center; }
-    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Portal - Cinema World</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link rel="stylesheet" href="assets/css/main.css">
 </head>
-<body>
-    <div class="box">
-        <h2>Admin Portal</h2>
-        <p class="sub">Enter credentials to manage theater</p>
-        <?php if(isset($error)) echo "<div class='error'>$error</div>"; ?>
+<body style="display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px;">
+
+    <div class="glass-card" style="width: 100%; max-width: 420px; padding: 40px 35px; border-color: rgba(99,102,241,0.3); box-shadow: 0 0 35px rgba(99,102,241,0.2);">
+        
+        <div style="text-align: center; margin-bottom: 28px;">
+            <div style="width: 60px; height: 60px; border-radius: 16px; background: rgba(99,102,241,0.15); color: #818cf8; display: flex; align-items: center; justify-content: center; font-size: 26px; margin: 0 auto 16px;">
+                <i class="fa-solid fa-shield-halved"></i>
+            </div>
+            <h2 style="font-size: 24px; margin-bottom: 4px;">Admin Portal</h2>
+            <p style="color: var(--text-muted); font-size: 13px;">Authorized personnel cinema management</p>
+        </div>
+
+        <?php if(!empty($error)): ?>
+            <div class="alert alert-danger">
+                <i class="fa-solid fa-triangle-exclamation"></i> <?= $error ?>
+            </div>
+        <?php endif; ?>
+
         <form method="POST">
             <div class="form-group">
-                <label>Username</label>
-                <input type="text" name="username" placeholder="admin" required>
+                <label class="form-label"><i class="fa-solid fa-user-shield"></i> Username</label>
+                <input type="text" name="username" class="form-control" placeholder="admin" required autofocus>
             </div>
+
             <div class="form-group">
-                <label>Password</label>
-                <input type="password" name="password" placeholder="••••••••" required>
+                <label class="form-label"><i class="fa-solid fa-key"></i> Password</label>
+                <input type="password" name="password" class="form-control" placeholder="••••••••" required>
             </div>
-            <button type="submit" name="login">Login to Dashboard</button>
+
+            <div style="background: rgba(99,102,241,0.1); border: 1px dashed rgba(99,102,241,0.3); border-radius: 8px; padding: 10px; font-size: 12px; color: #a5b4fc; margin-bottom: 18px;">
+                <i class="fa-solid fa-circle-info"></i> Demo credentials: <strong>admin</strong> / <strong>admin123</strong>
+            </div>
+
+            <button type="submit" name="login" class="btn btn-accent btn-lg" style="width: 100%;">
+                <i class="fa-solid fa-right-to-bracket"></i> Login to Dashboard
+            </button>
         </form>
+
+        <div style="text-align: center; margin-top: 20px;">
+            <a href="index.php" style="color: var(--text-dim); font-size: 13px;">
+                <i class="fa-solid fa-arrow-left"></i> Return to Main Website
+            </a>
+        </div>
     </div>
+
 </body>
 </html>
