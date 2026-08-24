@@ -2,145 +2,6 @@
 $page_title = "Admin Dashboard";
 include 'db.php';
 
-<<<<<<< HEAD
-// Check if user is logged in
-if (!isset($_SESSION['user_id'])) {
-    header("Location: user_login.php");
-    exit();
-}
-
-$user_id = $_SESSION['user_id'];
-
-// Fetch user details
-$user_query = $conn->prepare("SELECT * FROM users WHERE id = ?");
-$user_query->bind_param("i", $user_id);
-$user_query->execute();
-$user = $user_query->get_result()->fetch_assoc();
-
-// Fetch user bookings with movie details
-$bookings_query = $conn->prepare("
-    SELECT bookings.*, movies.title as movie_title, movies.price as movie_price, movies.poster 
-    FROM bookings 
-    JOIN movies ON bookings.movie_id = movies.id 
-    WHERE bookings.user_id = ? 
-    ORDER BY bookings.id DESC
-");
-$bookings_query->bind_param("i", $user_id);
-$bookings_query->execute();
-$bookings = $bookings_query->get_result();
-?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cinema World - User Dashboard</title>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        :root {
-            --primary: #38bdf8;
-            --primary-glow: rgba(56, 189, 248, 0.4);
-            --accent: #818cf8;
-            --bg-dark: #030712;
-            --card-bg: rgba(17, 24, 39, 0.75);
-        }
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif; }
-        body { background: var(--bg-dark); color: #f8fafc; min-height: 100vh; padding: 40px 20px; }
-
-        .dashboard-container { max-width: 1200px; margin: 0 auto; }
-
-        /* Header Section */
-        .dash-header {
-            background: var(--card-bg); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.1);
-            padding: 30px; border-radius: 24px; display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 35px; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
-        }
-        .user-info h1 { font-size: 26px; font-weight: 900; color: #fff; }
-        .user-info h1 span { color: var(--primary); }
-        .user-info p { color: #94a3b8; font-size: 14px; font-weight: 600; margin-top: 4px; }
-        
-        .nav-btns { display: flex; gap: 12px; }
-        .btn-action {
-            background: rgba(56, 189, 248, 0.15); color: var(--primary); border: 1px solid rgba(56, 189, 248, 0.3);
-            padding: 10px 20px; border-radius: 12px; font-weight: 700; text-decoration: none; font-size: 14px; transition: 0.3s;
-        }
-        .btn-action:hover { background: var(--primary); color: #0f172a; }
-        .btn-logout { background: rgba(239, 68, 68, 0.15); color: #f87171; border-color: rgba(239, 68, 68, 0.3); }
-        .btn-logout:hover { background: #ef4444; color: #fff; }
-
-        /* Section Title */
-        .section-title { font-size: 20px; font-weight: 800; margin-bottom: 20px; color: #fff; display: flex; align-items: center; gap: 10px; }
-        
-        /* Bookings Grid */
-        .bookings-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 20px; }
-        
-        .booking-card {
-            background: var(--card-bg); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 20px; padding: 22px; box-shadow: 0 15px 30px rgba(0,0,0,0.5); transition: 0.3s;
-        }
-        .booking-card:hover { border-color: var(--primary); transform: translateY(-3px); }
-
-        .movie-title { font-size: 18px; font-weight: 800; color: #fff; margin-bottom: 8px; }
-        .booking-detail { font-size: 13px; font-weight: 600; color: #94a3b8; margin-bottom: 6px; display: flex; justify-content: space-between; }
-        .booking-detail span { color: #f8fafc; font-weight: 700; }
-
-        /* Status Badges */
-        .badge-pending { background: rgba(234, 179, 8, 0.15); color: #facc15; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 800; border: 1px solid rgba(234, 179, 8, 0.3); }
-        .badge-approved { background: rgba(16, 185, 129, 0.15); color: #34d399; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 800; border: 1px solid rgba(16, 185, 129, 0.3); }
-        .badge-rejected { background: rgba(239, 68, 68, 0.15); color: #f87171; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 800; border: 1px solid rgba(239, 68, 68, 0.3); }
-
-        .empty-state { text-align: center; padding: 50px; color: #94a3b8; font-weight: 600; background: var(--card-bg); border-radius: 20px; border: 1px solid rgba(255, 255, 255, 0.08); grid-column: 1 / -1; }
-    </style>
-</head>
-<body>
-
-    <div class="dashboard-container">
-        <!-- Header -->
-        <div class="dash-header">
-            <div class="user-info">
-                <h1>Welcome, <span><?= htmlspecialchars($user['name']) ?></span>!</h1>
-                <p><i class="fa-solid fa-envelope" style="color: var(--primary);"></i> <?= htmlspecialchars($user['email']) ?></p>
-            </div>
-            <div class="nav-btns">
-                <a href="index.php" class="btn-action"><i class="fa-solid fa-film"></i> Browse Movies</a>
-                <a href="logout.php" class="btn-action btn-logout"><i class="fa-solid fa-right-from-bracket"></i> Logout</a>
-            </div>
-        </div>
-
-        <!-- My Bookings Section -->
-        <div class="section-title">
-            <i class="fa-solid fa-ticket" style="color: var(--primary);"></i> My Movie Tickets & Bookings
-        </div>
-
-        <div class="bookings-grid">
-            <?php if ($bookings->num_rows > 0): ?>
-                <?php while($row = $bookings->fetch_assoc()): ?>
-                    <div class="booking-card">
-                        <div class="movie-title"><?= htmlspecialchars($row['movie_title']) ?></div>
-                        <div class="booking-detail">Booking ID: <span>#<?= $row['id'] ?></span></div>
-                        <div class="booking-detail">Selected Seats: <span style="color: var(--primary);"><?= htmlspecialchars($row['seats']) ?></span></div>
-                        <div class="booking-detail">Total Price: <span>NPR <?= number_format($row['movie_price'], 2) ?></span></div>
-                        <div class="booking-detail" style="align-items: center; margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.06);">
-                            Status: 
-                            <?php if($row['status'] == 'Pending'): ?>
-                                <span class="badge-pending">Pending Verification</span>
-                            <?php elseif($row['status'] == 'Approved'): ?>
-                                <span class="badge-approved">Approved (Confirmed)</span>
-                            <?php else: ?>
-                                <span class="badge-rejected">Rejected</span>
-                            <?php endif; ?>
-                        </div>
-                    </div>
-                <?php endwhile; ?>
-            <?php else: ?>
-                <div class="empty-state">
-                    <i class="fa-solid fa-ticket-simple" style="font-size: 40px; color: var(--primary); margin-bottom: 12px; display: block;"></i>
-                    You haven't booked any movies yet! <br>
-                    <a href="index.php" style="color: var(--primary); text-decoration: none; font-weight: 700; margin-top: 8px; display: inline-block;">Book your first movie now →</a>
-                </div>
-            <?php endif; ?>
-=======
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
@@ -155,68 +16,50 @@ $err = "";
 
 // Movie Add Logic
 if (isset($_POST['add_movie'])) {
-    $title = trim($_POST['title']);
-    $genre = trim($_POST['genre']);
-    $duration = intval($_POST['duration']);
-    $price = floatval($_POST['price']);
-    $poster_image = trim($_POST['poster_image']);
-    $description = trim($_POST['description']);
-    $rating = floatval($_POST['rating'] ?? 4.5);
-    $trailer_url = trim($_POST['trailer_url']);
-    $show_times = trim($_POST['show_times'] ?? '10:30 AM, 02:00 PM, 05:30 PM, 08:45 PM');
-    $status = trim($_POST['status'] ?? 'now_showing');
-
-    if (!empty($title) && !empty($genre) && $duration > 0 && $price > 0) {
-        $stmt = $conn->prepare("INSERT INTO movies (title, genre, duration, price, poster_image, description, rating, trailer_url, show_times, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-        $stmt->bind_param("ssisssdsss", $title, $genre, $duration, $price, $poster_image, $description, $rating, $trailer_url, $show_times, $status);
-        if ($stmt->execute()) {
-            $msg = "Movie '{$title}' added successfully!";
-        } else {
-            $err = "Failed to add movie: " . htmlspecialchars($conn->error);
-        }
+    $stmt = $conn->prepare("INSERT INTO movies (title, genre, duration, price, poster_image, description, rating, trailer_url, show_times, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+    $stmt->bind_param("ssisssdsss", 
+        $_POST['title'], $_POST['genre'], $_POST['duration'], $_POST['price'], 
+        $_POST['poster_image'], $_POST['description'], $_POST['rating'], 
+        $_POST['trailer_url'], $_POST['show_times'], $_POST['status']
+    );
+    
+    if ($stmt->execute()) {
+        $msg = "Movie added successfully!";
     } else {
-        $err = "Please fill in all required movie fields correctly.";
+        $err = "Database error: " . $conn->error;
     }
 }
 
 // Movie Edit Logic
 if (isset($_POST['edit_movie'])) {
-    $m_id = intval($_POST['movie_id']);
-    $title = trim($_POST['title']);
-    $genre = trim($_POST['genre']);
-    $duration = intval($_POST['duration']);
-    $price = floatval($_POST['price']);
-    $poster_image = trim($_POST['poster_image']);
-    $description = trim($_POST['description']);
-    $rating = floatval($_POST['rating']);
-    $trailer_url = trim($_POST['trailer_url']);
-    $status = trim($_POST['status']);
-
-    $stmt = $conn->prepare("UPDATE movies SET title=?, genre=?, duration=?, price=?, poster_image=?, description=?, rating=?, trailer_url=?, status=? WHERE id=?");
-    $stmt->bind_param("ssisssdssi", $title, $genre, $duration, $price, $poster_image, $description, $rating, $trailer_url, $status, $m_id);
+    $stmt = $conn->prepare("UPDATE movies SET title=?, genre=?, duration=?, price=?, poster_image=?, description=?, rating=?, trailer_url=?, show_times=?, status=? WHERE id=?");
+    $stmt->bind_param("ssisssdsssi", 
+        $_POST['title'], $_POST['genre'], $_POST['duration'], $_POST['price'], 
+        $_POST['poster_image'], $_POST['description'], $_POST['rating'], 
+        $_POST['trailer_url'], $_POST['show_times'], $_POST['status'], $_POST['movie_id']
+    );
     if ($stmt->execute()) {
         $msg = "Movie updated successfully!";
     } else {
-        $err = "Failed to update movie.";
+        $err = "Update failed: " . $conn->error;
     }
 }
 
-// Movie Delete Logic (Fixed redirection bug)
+// Movie Delete Logic
 if (isset($_GET['delete_movie'])) {
-    $m_id = intval($_GET['delete_movie']);
-    $conn->query("DELETE FROM movies WHERE id = $m_id");
+    $stmt = $conn->prepare("DELETE FROM movies WHERE id = ?");
+    $stmt->bind_param("i", $_GET['delete_movie']);
+    $stmt->execute();
     header("Location: dashboard.php?msg=deleted");
     exit();
 }
 
-// Booking Payment Status Update Logic
+// Booking Payment Status Update
 if (isset($_POST['update_payment_status'])) {
-    $b_id = intval($_POST['booking_id']);
-    $new_status = trim($_POST['status']);
     $stmt = $conn->prepare("UPDATE bookings SET payment_status = ? WHERE id = ?");
-    $stmt->bind_param("si", $new_status, $b_id);
+    $stmt->bind_param("si", $_POST['status'], $_POST['booking_id']);
     $stmt->execute();
-    $msg = "Booking #{$b_id} payment status updated to '{$new_status}'";
+    $msg = "Payment status updated!";
 }
 
 // KPI Stats Calculation
@@ -232,10 +75,8 @@ $active_movies = $active_movies_res ? $active_movies_res->fetch_assoc()['cnt'] :
 $total_users_res = $conn->query("SELECT COUNT(*) as cnt FROM users");
 $total_users = $total_users_res ? $total_users_res->fetch_assoc()['cnt'] : 0;
 
-// All Movies Fetch
+// Data Fetching
 $movies = $conn->query("SELECT * FROM movies ORDER BY id DESC");
-
-// All Bookings Fetch
 $bookings = $conn->query("
     SELECT b.*, u.name as user_name, u.email as user_email, m.title as movie_title 
     FROM bookings b
@@ -243,9 +84,7 @@ $bookings = $conn->query("
     JOIN movies m ON b.movie_id = m.id
     ORDER BY b.id DESC
 ");
-
-// All Users Fetch
-$users_list = $conn->query("SELECT id, name, email, phone, created_at FROM users ORDER BY id DESC");
+$users_list = $conn->query("SELECT * FROM users ORDER BY id DESC");
 
 include 'includes/header.php';
 ?>
@@ -271,11 +110,15 @@ include 'includes/header.php';
     </div>
 
     <?php if($msg != "" || isset($_GET['msg'])): ?>
-        <div class="alert alert-success"><i class="fa-solid fa-circle-check"></i> <?= $msg ?: "Action performed successfully." ?></div>
+        <div class="alert alert-success" style="padding: 12px; background: rgba(16,185,129,0.15); border: 1px solid #10b981; color: #34d399; border-radius: 8px; margin-bottom: 20px;">
+            <i class="fa-solid fa-circle-check"></i> <?= $msg ?: "Action performed successfully." ?>
+        </div>
     <?php endif; ?>
 
     <?php if($err != ""): ?>
-        <div class="alert alert-danger"><i class="fa-solid fa-triangle-exclamation"></i> <?= $err ?></div>
+        <div class="alert alert-danger" style="padding: 12px; background: rgba(239,68,68,0.15); border: 1px solid #ef4444; color: #f87171; border-radius: 8px; margin-bottom: 20px;">
+            <i class="fa-solid fa-triangle-exclamation"></i> <?= $err ?>
+        </div>
     <?php endif; ?>
 
     <!-- KPI Metric Cards -->
@@ -406,10 +249,10 @@ include 'includes/header.php';
                         <th>Customer</th>
                         <th>Movie</th>
                         <th>Seats</th>
-                        <th>Showtime</th>
                         <th>Amount</th>
                         <th>Transaction Ref</th>
                         <th>Payment Status</th>
+                        <th>Receipt (SS)</th>
                         <th>Date</th>
                     </tr>
                 </thead>
@@ -417,6 +260,7 @@ include 'includes/header.php';
                     <?php if($bookings && $bookings->num_rows > 0): ?>
                         <?php while($b = $bookings->fetch_assoc()): 
                             $ticket_code = $b['ticket_code'] ?: ('CW-' . str_pad($b['id'], 6, '0', STR_PAD_LEFT));
+                            $receipt_image = !empty($b['payment_screenshot']) ? $b['payment_screenshot'] : (strpos($b['transaction_id'], 'uploads/') !== false ? $b['transaction_id'] : '');
                         ?>
                             <tr>
                                 <td>
@@ -430,7 +274,6 @@ include 'includes/header.php';
                                 </td>
                                 <td><?= htmlspecialchars($b['movie_title']) ?></td>
                                 <td><strong style="color: var(--accent);"><?= htmlspecialchars($b['seat_number']) ?></strong></td>
-                                <td><?= htmlspecialchars($b['show_time'] ?? '05:30 PM') ?></td>
                                 <td><strong>Rs. <?= number_format($b['total_amount'] ?? 350, 2) ?></strong></td>
                                 <td>
                                     <span style="font-family: monospace; background: #090d16; padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border-color); color: #38bdf8; font-size: 12px;">
@@ -448,6 +291,16 @@ include 'includes/header.php';
                                         <input type="hidden" name="update_payment_status" value="1">
                                     </form>
                                 </td>
+                                <!-- View Screenshot Button (Opens In-Page Modal) -->
+                                <td>
+                                    <?php if(!empty($receipt_image)): ?>
+                                        <button type="button" onclick="openScreenshotModal('<?= htmlspecialchars($receipt_image, ENT_QUOTES) ?>')" class="btn btn-sm btn-accent" style="padding: 4px 10px; font-size: 11px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer;">
+                                            <i class="fa-solid fa-image"></i> View SS
+                                        </button>
+                                    <?php else: ?>
+                                        <span style="color: #64748b; font-size: 11px; font-style: italic;">No SS</span>
+                                    <?php endif; ?>
+                                </td>
                                 <td style="font-size: 12px; color: var(--text-dim);"><?= date('M d, H:i', strtotime($b['booking_date'])) ?></td>
                             </tr>
                         <?php endwhile; ?>
@@ -456,7 +309,6 @@ include 'includes/header.php';
                     <?php endif; ?>
                 </tbody>
             </table>
->>>>>>> b272aa372d89b77b743fc0244c37faf76bb97987
         </div>
     </div>
 
@@ -493,6 +345,24 @@ include 'includes/header.php';
     </div>
 
 </main>
+
+<!-- SCREENSHOT PREVIEW MODAL (In-Page Pop-up) -->
+<div id="screenshotModal" style="display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,0.85); backdrop-filter:blur(8px); align-items:center; justify-content:center; padding:20px;">
+    <div class="glass-card" style="width:100%; max-width:500px; max-height:90vh; display:flex; flex-direction:column; padding:20px; text-align:center; position:relative;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:1px solid var(--border-color); padding-bottom:10px;">
+            <h3 style="color:#fff; font-size:18px;"><i class="fa-solid fa-receipt" style="color:var(--accent); margin-right:8px;"></i> Payment Screenshot</h3>
+            <button onclick="closeScreenshotModal()" style="background:none; border:none; color:#94a3b8; font-size:22px; cursor:pointer;"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div style="overflow-y:auto; flex-grow:1; display:flex; justify-content:center; align-items:center;">
+            <img id="modalImageSrc" src="" alt="Payment Screenshot" style="max-width:150%; max-height:70vh; border-radius:8px; border:1px solid var(--border-color); object-fit:contain;">
+        </div>
+        <div style="margin-top:15px;">
+            <a id="downloadImageBtn" href="" target="_blank" class="btn btn-outline btn-sm" style="font-size:12px;">
+                <i class="fa-solid fa-arrow-up-right-from-square"></i> Open Original Size
+            </a>
+        </div>
+    </div>
+</div>
 
 <!-- Add Movie Modal -->
 <div id="addMovieModal" style="display:none; position:fixed; inset:0; z-index:999; background:rgba(0,0,0,0.8); backdrop-filter:blur(8px); align-items:center; justify-content:center; padding:20px;">
@@ -612,12 +482,17 @@ include 'includes/header.php';
                     <input type="url" name="trailer_url" id="edit_trailer" class="form-control">
                 </div>
 
-                <div class="form-group" style="grid-column:1/-1;">
+                <div class="form-group">
                     <label class="form-label">Status</label>
                     <select name="status" id="edit_status" class="form-control">
                         <option value="now_showing">Now Showing</option>
                         <option value="coming_soon">Coming Soon</option>
                     </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Daily Showtimes</label>
+                    <input type="text" name="show_times" id="edit_show_times" class="form-control">
                 </div>
 
                 <div class="form-group" style="grid-column:1/-1;">
@@ -655,6 +530,7 @@ function openEditModal(movie) {
     document.getElementById('edit_poster').value = movie.poster_image || '';
     document.getElementById('edit_trailer').value = movie.trailer_url || '';
     document.getElementById('edit_status').value = movie.status || 'now_showing';
+    document.getElementById('edit_show_times').value = movie.show_times || '';
     document.getElementById('edit_desc').value = movie.description || '';
 
     document.getElementById('editMovieModal').style.display = 'flex';
@@ -667,6 +543,18 @@ function filterBookingsTable() {
         let text = row.innerText.toLowerCase();
         row.style.display = text.includes(filter) ? '' : 'none';
     });
+}
+
+// Screenshot In-Page Modal Functions
+function openScreenshotModal(imageUrl) {
+    document.getElementById('modalImageSrc').src = imageUrl;
+    document.getElementById('downloadImageBtn').href = imageUrl;
+    document.getElementById('screenshotModal').style.display = 'flex';
+}
+
+function closeScreenshotModal() {
+    document.getElementById('screenshotModal').style.display = 'none';
+    document.getElementById('modalImageSrc').src = '';
 }
 </script>
 

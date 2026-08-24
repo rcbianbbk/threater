@@ -1,20 +1,4 @@
 <?php
-<<<<<<< HEAD
-session_start();
-require_once 'db.php';
-
-if (isset($_GET['id']) && isset($_GET['action'])) {
-    $id = intval($_GET['id']);
-    $action = $_GET['action'];
-
-    if ($action === 'approve') {
-        $status = 'Approved';
-    } elseif ($action === 'reject') {
-        $status = 'Rejected';
-    } else {
-        header("Location: view_bookings.php");
-        exit();
-=======
 $page_title = "Verify OTP";
 include 'db.php';
 
@@ -43,26 +27,8 @@ if (isset($_POST['verify'])) {
         exit();
     } else {
         $err = "Invalid verification code. Please try again.";
->>>>>>> b272aa372d89b77b743fc0244c37faf76bb97987
     }
-
-    // Database status update
-    $stmt = $conn->prepare("UPDATE bookings SET status = ? WHERE id = ?");
-    $stmt->bind_param("si", $status, $id);
-
-    if ($stmt->execute()) {
-        header("Location: view_bookings.php?success=1");
-    } else {
-        echo "Error updating status: " . $conn->error;
-    }
-    $stmt->close();
-} else {
-    header("Location: view_bookings.php");
 }
-<<<<<<< HEAD
-exit();
-?>
-=======
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -116,4 +82,3 @@ exit();
 
 </body>
 </html>
->>>>>>> b272aa372d89b77b743fc0244c37faf76bb97987

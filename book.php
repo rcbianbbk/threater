@@ -2,69 +2,6 @@
 $page_title = "Book Tickets & Select Seats";
 include 'db.php';
 
-<<<<<<< HEAD
-// 1. User login check
-if (!isset($_SESSION['user_id'])) {
-    header("Location: user_login.php");
-    exit();
-}
-
-$user_id = $_SESSION['user_id'];
-
-// Movie ID check from URL parameter
-$movie_id = isset($_GET['movie_id']) ? intval($_GET['movie_id']) : 0;
-$movie_query = $conn->query("SELECT * FROM movies WHERE id = $movie_id");
-$movie = $movie_query->fetch_assoc();
-
-if (!$movie) {
-    header("Location: index.php");
-    exit();
-}
-
-$error = "";
-
-// 2. Form submit huda execute hune code (Seat + Screenshot Processing)
-if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $selected_seats = isset($_POST['seats']) ? trim($_POST['seats']) : '';
-    
-    // Validation: Seat check
-    if (empty($selected_seats)) {
-        $error = "Please select at least one seat!";
-    } 
-    // Validation: Payment Screenshot upload check
-    elseif (!isset($_FILES['payment_screenshot']) || $_FILES['payment_screenshot']['error'] != 0) {
-        $error = "Please upload your payment screenshot!";
-    } else {
-        // 3. Handle Payment Screenshot Image Upload & Save
-        $img_name = $_FILES['payment_screenshot']['name'];
-        $tmp_name = $_FILES['payment_screenshot']['tmp_name'];
-        $ext = pathinfo($img_name, PATHINFO_EXTENSION);
-        
-        // Unique file name generate garne taaki file name clash na hos
-        $new_img_name = "pay_" . uniqid() . "." . $ext;
-        
-        // Uploads folder xena vane automatically create garne
-        if (!is_dir('uploads')) {
-            mkdir('uploads', 0777, true);
-        }
-        
-        $upload_path = "uploads/" . $new_img_name;
-
-        // Move file to uploads folder & save booking to database
-        if (move_uploaded_file($tmp_name, $upload_path)) {
-            // Database ma insert garne (transaction_id column ma screenshot filename save huncha)
-            $stmt = $conn->prepare("INSERT INTO bookings (user_id, movie_id, seats, transaction_id, status) VALUES (?, ?, ?, ?, 'Pending')");
-            $stmt->bind_param("iiss", $user_id, $movie_id, $selected_seats, $new_img_name);
-            
-            if ($stmt->execute()) {
-                header("Location: profile.php?booked=success");
-                exit();
-            } else {
-                $error = "Database error! Please try again.";
-            }
-        } else {
-            $error = "Failed to upload payment screenshot image.";
-=======
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
@@ -80,7 +17,6 @@ $movie_res = $conn->query("SELECT * FROM movies WHERE id = $movie_id");
 $movie = ($movie_res && $movie_res->num_rows > 0) ? $movie_res->fetch_assoc() : null;
 
 if (!$movie) {
-    // If invalid movie, redirect home
     header("Location: index.php");
     exit();
 }
@@ -89,9 +25,17 @@ if (!$movie) {
 $available_times = array_map('trim', explode(',', $movie['show_times'] ?: '10:30 AM, 02:00 PM, 05:30 PM, 08:45 PM'));
 $selected_showtime = $_POST['show_time'] ?? $_GET['show_time'] ?? ($available_times[0] ?? '05:30 PM');
 
+if (!in_array($selected_showtime, $available_times)) {
+    $selected_showtime = $available_times[0];
+}
+
 // Booked Seats for this movie & showtime
 $booked_seats = [];
-$res = $conn->query("SELECT seat_number FROM bookings WHERE movie_id = $movie_id AND (show_time = '$selected_showtime' OR show_time IS NULL)");
+$stmt_seats = $conn->prepare("SELECT seat_number FROM bookings WHERE movie_id = ? AND show_time = ?");
+$stmt_seats->bind_param("is", $movie_id, $selected_showtime);
+$stmt_seats->execute();
+$res = $stmt_seats->get_result();
+
 if ($res) {
     while ($row = $res->fetch_assoc()) {
         $seats_in_booking = explode(',', $row['seat_number']);
@@ -108,24 +52,61 @@ $msg = "";
 $err = "";
 $confirmed_booking_id = null;
 
+// VIP Extra Charge per seat (तपाईं आफ्नो हिसाबले रकम परिवर्तन गर्न सक्नुहुन्छ)
+$vip_extra_fee = 150.00;
+
 // Handle Booking Form Submission
 if (isset($_POST['confirm_booking'])) {
     $selected_seats_raw = trim($_POST['selected_seats'] ?? '');
     $selected_showtime = trim($_POST['show_time'] ?? $available_times[0]);
-    $payment_method = trim($_POST['payment_method'] ?? 'eSewa / Khalti QR');
-    $txn_id = trim($_POST['transaction_id'] ?? '');
-
+    $payment_method = trim($_POST['payment_method'] ?? 'eSewa / Khalti QR Screenshot');
+    
     $seat_array = array_filter(array_map('trim', explode(',', $selected_seats_raw)));
+
+    // Handle Payment Screenshot Upload
+    $screenshot_path = "";
+    if (isset($_FILES['payment_screenshot']) && $_FILES['payment_screenshot']['error'] == 0) {
+        $allowed_exts = ['jpg', 'jpeg', 'png', 'webp'];
+        $file_name = $_FILES['payment_screenshot']['name'];
+        $file_tmp = $_FILES['payment_screenshot']['tmp_name'];
+        $file_ext = strtolower(pathinfo($file_name, PATHINFO_EXTENSION));
+
+        if (in_array($file_ext, $allowed_exts)) {
+            $upload_dir = "uploads/payments/";
+            if (!is_dir($upload_dir)) {
+                mkdir($upload_dir, 0777, true);
+            }
+            $new_file_name = "pay_" . uniqid() . "." . $file_ext;
+            $screenshot_path = $upload_dir . $new_file_name;
+            move_uploaded_file($file_tmp, $screenshot_path);
+        } else {
+            $err = "कृपया मान्य (JPG, PNG, JPEG) फोटो मात्र अपलोड गर्नुहोस्!";
+        }
+    }
 
     if (empty($seat_array)) {
         $err = "Please select at least one seat before proceeding!";
-    } elseif (empty($txn_id)) {
-        $err = "Please enter your Payment Transaction ID / Reference Code!";
+    } elseif (empty($screenshot_path)) {
+        $err = "Please upload your payment screenshot/receipt!";
     } else {
-        // Check if any selected seat got booked concurrently
+        // Re-verify booked seats securely
+        $fresh_booked_seats = [];
+        $stmt_check = $conn->prepare("SELECT seat_number FROM bookings WHERE movie_id = ? AND show_time = ?");
+        $stmt_check->bind_param("is", $movie_id, $selected_showtime);
+        $stmt_check->execute();
+        $check_res = $stmt_check->get_result();
+        if ($check_res) {
+            while ($row = $check_res->fetch_assoc()) {
+                foreach (explode(',', $row['seat_number']) as $s) {
+                    $c = trim($s);
+                    if (!empty($c)) $fresh_booked_seats[] = $c;
+                }
+            }
+        }
+
         $conflict = false;
         foreach ($seat_array as $st) {
-            if (in_array($st, $booked_seats)) {
+            if (in_array($st, $fresh_booked_seats)) {
                 $conflict = true;
                 break;
             }
@@ -134,13 +115,22 @@ if (isset($_POST['confirm_booking'])) {
         if ($conflict) {
             $err = "One or more selected seats have just been booked. Please choose other seats.";
         } else {
-            $total_seats = count($seat_array);
-            $total_amount = $total_seats * floatval($movie['price']);
+            // Calculate exact total amount (VIP row A gets extra fee)
+            $total_amount = 0;
+            $base_price = floatval($movie['price']);
+            foreach ($seat_array as $st) {
+                if (strpos($st, 'A') === 0) {
+                    $total_amount += ($base_price + $vip_extra_fee);
+                } else {
+                    $total_amount += $base_price;
+                }
+            }
+
             $joined_seats = implode(', ', $seat_array);
             $ticket_code = 'CW-' . strtoupper(substr(md5(uniqid(rand(), true)), 0, 8));
 
-            $stmt = $conn->prepare("INSERT INTO bookings (user_id, movie_id, seat_number, show_time, total_amount, payment_method, payment_status, transaction_id, ticket_code) VALUES (?, ?, ?, ?, ?, ?, 'Success', ?, ?)");
-            $stmt->bind_param("iissdsss", $_SESSION['user_id'], $movie_id, $joined_seats, $selected_showtime, $total_amount, $payment_method, $txn_id, $ticket_code);
+            $stmt = $conn->prepare("INSERT INTO bookings (user_id, movie_id, seat_number, show_time, total_amount, payment_method, payment_status, transaction_id, ticket_code) VALUES (?, ?, ?, ?, ?, ?, 'Pending', ?, ?)");
+            $stmt->bind_param("iissdsss", $_SESSION['user_id'], $movie_id, $joined_seats, $selected_showtime, $total_amount, $payment_method, $screenshot_path, $ticket_code);
 
             if ($stmt->execute()) {
                 $confirmed_booking_id = $conn->insert_id;
@@ -151,150 +141,14 @@ if (isset($_POST['confirm_booking'])) {
             } else {
                 $err = "Booking failed due to database error: " . htmlspecialchars($conn->error);
             }
->>>>>>> b272aa372d89b77b743fc0244c37faf76bb97987
         }
     }
 }
 
 include 'includes/header.php';
 ?>
-<<<<<<< HEAD
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cinema World - Book Seats & Pay</title>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        :root {
-            --primary: #38bdf8;
-            --primary-glow: rgba(56, 189, 248, 0.4);
-            --accent: #818cf8;
-            --bg-dark: #030712;
-            --card-bg: rgba(17, 24, 39, 0.75);
-        }
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif; }
-        body { background: var(--bg-dark); color: #f8fafc; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 40px 20px; }
-
-        .booking-container {
-            background: var(--card-bg); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.1);
-            padding: 35px; border-radius: 28px; width: 100%; max-width: 500px; box-shadow: 0 25px 50px rgba(0, 0, 0, 0.8);
-        }
-        .header-title { text-align: center; margin-bottom: 25px; }
-        .header-title h2 { font-size: 24px; font-weight: 900; color: #fff; }
-        .header-title span { color: var(--primary); }
-
-        .screen-indicator {
-            background: linear-gradient(90deg, transparent, var(--primary-glow), transparent);
-            text-align: center; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px;
-            color: #94a3b8; padding: 6px; margin-bottom: 20px; border-radius: 6px;
-        }
-
-        .seats-grid {
-            display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin-bottom: 25px;
-        }
-        .seat-btn {
-            background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255, 255, 255, 0.1);
-            color: #fff; padding: 12px 0; border-radius: 10px; font-weight: 700; font-size: 13px;
-            cursor: pointer; text-align: center; transition: 0.2s; user-select: none;
-        }
-        .seat-btn:hover { border-color: var(--primary); }
-        .seat-btn.selected { background: var(--primary); color: #0f172a; border-color: var(--primary); box-shadow: 0 0 12px var(--primary-glow); }
-
-        .payment-box {
-            background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.08);
-            padding: 20px; border-radius: 20px; margin-bottom: 20px; text-align: center;
-        }
-        .qr-img { width: 140px; height: 140px; border-radius: 12px; background: #fff; padding: 8px; margin: 10px auto; display: block; object-fit: contain; }
-
-        .form-group { margin-bottom: 15px; text-align: left; }
-        .form-group label { display: block; font-size: 13px; font-weight: 700; color: #94a3b8; margin-bottom: 6px; }
-        .file-input {
-            width: 100%; padding: 10px; background: rgba(15, 23, 42, 0.8);
-            border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; color: #fff; font-size: 13px; outline: none; cursor: pointer;
-        }
-
-        .btn-submit {
-            width: 100%; background: linear-gradient(135deg, #10b981, #059669); color: #fff;
-            font-weight: 800; font-size: 15px; padding: 14px; border-radius: 14px; border: none; cursor: pointer;
-            transition: 0.3s; box-shadow: 0 8px 20px rgba(16, 185, 129, 0.4); display: flex; align-items: center; justify-content: center; gap: 8px;
-        }
-        .btn-submit:hover { transform: scale(1.02); }
-        .error-msg { background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); color: #f87171; padding: 10px; border-radius: 10px; font-size: 13px; font-weight: 600; margin-bottom: 15px; text-align: center; }
-        .back-link { display: block; text-align: center; color: #94a3b8; text-decoration: none; font-size: 13px; font-weight: 600; margin-top: 15px; }
-        .back-link:hover { color: #fff; }
-    </style>
-</head>
-<body>
-
-    <div class="booking-container">
-        <div class="header-title">
-            <h2>Select Seat & Pay</h2>
-            <p style="color: #64748b; font-size: 13px; font-weight: 600; margin-top: 4px;"><?= htmlspecialchars($movie['title']) ?> (NPR <?= number_format($movie['price'], 2) ?>)</p>
-        </div>
-
-        <?php if(!empty($error)): ?>
-            <div class="error-msg"><?= $error ?></div>
-        <?php endif; ?>
-
-        <!-- Form with enctype multipart for image file upload -->
-        <form action="" method="POST" enctype="multipart/form-data">
-            <div class="screen-indicator">Screen This Way</div>
-
-            <!-- Seat Grid Selection -->
-            <div class="seats-grid" id="seatsGrid">
-                <?php 
-                $rows = ['A', 'B', 'C', 'D'];
-                foreach($rows as $r) {
-                    for($i = 1; $i <= 6; $i++) {
-                        $seatName = $r.$i;
-                        echo '<div class="seat-btn" onclick="toggleSeat(this, \'' . $seatName . '\')">' . $seatName . '</div>';
-                    }
-                }
-                ?>
-            </div>
-
-            <input type="hidden" name="seats" id="selectedSeatsInput">
-
-            <!-- Payment Box with QR and Screenshot File Upload -->
-            <div class="payment-box">
-                <p style="font-size: 13px; font-weight: 700; color: #fff;"><i class="fa-solid fa-qrcode" style="color: var(--primary);"></i> Scan QR to Pay (eSewa / Khalti)</p>
-                <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=esewa_payment_dummy" alt="Payment QR" class="qr-img">
-                
-                <div class="form-group">
-                    <label><i class="fa-solid fa-image" style="color: var(--primary);"></i> Upload Payment Screenshot:</label>
-                    <input type="file" name="payment_screenshot" accept="image/*" required class="file-input">
-                </div>
-            </div>
-
-            <button type="submit" class="btn-submit">
-                <i class="fa-solid fa-shield-check"></i> Submit & Verify Payment
-            </button>
-        </form>
-
-        <a href="index.php" class="back-link">← Back to Home</a>
-    </div>
-
-    <script>
-    let selectedSeats = [];
-
-    function toggleSeat(element, seatName) {
-        if (element.classList.contains('selected')) {
-            element.classList.remove('selected');
-            selectedSeats = selectedSeats.filter(s => s !== seatName);
-        } else {
-            element.classList.add('selected');
-            selectedSeats.push(seatName);
-        }
-        document.getElementById('selectedSeatsInput').value = selectedSeats.join(',');
-    }
-    </script>
-=======
 
 <style>
-/* Seat Map Styling */
 .hall-container {
     background: #090d16;
     border: 1px solid var(--border-color);
@@ -388,7 +242,7 @@ include 'includes/header.php';
 }
 
 .seat-item.seat-vip {
-    border-color: rgba(245, 158, 11, 0.5);
+    border-color: rgba(245, 158, 11, 0.6);
 }
 
 .seat-legend {
@@ -438,14 +292,13 @@ include 'includes/header.php';
 <main class="container" style="margin-top: 15px; margin-bottom: 60px;">
 
     <?php if($confirmed_booking_id): ?>
-        <!-- Success Confirmation Card -->
         <div class="glass-card" style="max-width: 600px; margin: 20px auto; padding: 35px; text-align: center; border-color: rgba(16, 185, 129, 0.4); box-shadow: 0 0 30px rgba(16, 185, 129, 0.2);">
             <div style="width: 70px; height: 70px; border-radius: 50%; background: rgba(16, 185, 129, 0.2); color: #34d399; display: flex; align-items: center; justify-content: center; font-size: 32px; margin: 0 auto 20px;">
                 <i class="fa-solid fa-circle-check"></i>
             </div>
-            <h2 style="color: #fff; margin-bottom: 8px;">Booking Confirmed!</h2>
+            <h2 style="color: #fff; margin-bottom: 8px;">Booking Submitted!</h2>
             <p style="color: var(--text-muted); font-size: 15px; margin-bottom: 25px;">
-                <?= $msg ?>
+                <?= $msg ?> (Status: Pending Verification)
             </p>
 
             <div style="background: #090d16; border-radius: var(--radius-md); padding: 20px; text-align: left; margin-bottom: 25px; border: 1px solid var(--border-color);">
@@ -469,7 +322,7 @@ include 'includes/header.php';
 
             <div style="display: flex; gap: 14px; justify-content: center;">
                 <a href="ticket.php?id=<?= $confirmed_booking_id ?>" class="btn btn-accent btn-lg">
-                    <i class="fa-solid fa-receipt"></i> View & Print E-Ticket
+                    <i class="fa-solid fa-receipt"></i> View E-Ticket
                 </a>
                 <a href="my_bookings.php" class="btn btn-outline btn-lg">
                     <i class="fa-solid fa-list-check"></i> My Bookings
@@ -478,7 +331,6 @@ include 'includes/header.php';
         </div>
     <?php else: ?>
 
-        <!-- Breadcrumb / Back Link -->
         <div style="margin-bottom: 20px;">
             <a href="index.php" style="color: var(--text-muted); font-size: 14px; display: inline-flex; align-items: center; gap: 6px;">
                 <i class="fa-solid fa-arrow-left"></i> Back to Now Showing
@@ -486,16 +338,15 @@ include 'includes/header.php';
         </div>
 
         <?php if($err != ""): ?>
-            <div class="alert alert-danger">
+            <div class="alert alert-danger" style="margin-bottom: 20px;">
                 <i class="fa-solid fa-triangle-exclamation"></i> <?= $err ?>
             </div>
         <?php endif; ?>
 
-        <div style="display: grid; grid-template-columns: 1fr 380px; gap: 30px; align-items: start; @media(max-width: 900px){ grid-template-columns: 1fr; }">
+        <div style="display: grid; grid-template-columns: 1fr 380px; gap: 30px; align-items: start;">
             
-            <!-- Left Column: Movie Info, Showtime Picker & Hall Matrix -->
+            <!-- Left Column -->
             <div>
-                <!-- Movie Quick Glance Header -->
                 <div class="glass-card" style="padding: 22px; margin-bottom: 25px; display: flex; gap: 20px; align-items: center;">
                     <img src="<?= htmlspecialchars($movie['poster_image'] ?: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=400') ?>" alt="<?= htmlspecialchars($movie['title']) ?>" style="width: 75px; height: 110px; object-fit: cover; border-radius: 8px; border: 1px solid var(--border-color);">
                     <div>
@@ -507,7 +358,6 @@ include 'includes/header.php';
                     </div>
                 </div>
 
-                <!-- Showtime Selector -->
                 <div class="glass-card" style="padding: 20px; margin-bottom: 25px;">
                     <h4 style="font-size: 15px; margin-bottom: 12px; color: #fff;">
                         <i class="fa-regular fa-clock" style="color: var(--accent); margin-right: 6px;"></i> 1. Select Showtime
@@ -521,7 +371,6 @@ include 'includes/header.php';
                     </div>
                 </div>
 
-                <!-- Interactive Cinema Hall Map -->
                 <div class="hall-container">
                     <h4 style="font-size: 15px; margin-bottom: 18px; color: #fff; text-align: left;">
                         <i class="fa-solid fa-couch" style="color: var(--accent); margin-right: 6px;"></i> 2. Choose Your Seats
@@ -566,7 +415,7 @@ include 'includes/header.php';
                     <div class="seat-legend">
                         <div class="legend-pill">
                             <div class="legend-box" style="background:#141b2d; border:1px solid rgba(255,255,255,0.15);"></div>
-                            <span>Available</span>
+                            <span>Standard (Rs. <?= number_format($movie['price'], 0) ?>)</span>
                         </div>
                         <div class="legend-pill">
                             <div class="legend-box" style="background:#10b981;"></div>
@@ -577,14 +426,14 @@ include 'includes/header.php';
                             <span>Occupied</span>
                         </div>
                         <div class="legend-pill">
-                            <div class="legend-box" style="background:#141b2d; border:1px solid rgba(245,158,11,0.6);"></div>
-                            <span>VIP Recliner (A)</span>
+                            <div class="legend-box" style="background:#141b2d; border:1px solid rgba(245,158,11,0.8);"></div>
+                            <span>VIP (Rs. <?= number_format($movie['price'] + $vip_extra_fee, 0) ?>)</span>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Right Column: Booking Summary & Payment Checkout Form -->
+            <!-- Right Column: Summary & Payment SS Upload -->
             <div>
                 <div class="glass-card" style="padding: 24px; position: sticky; top: 90px;">
                     <h3 style="font-size: 18px; margin-bottom: 16px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px;">
@@ -593,8 +442,12 @@ include 'includes/header.php';
 
                     <div style="margin-bottom: 18px; font-size: 14px;">
                         <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
-                            <span style="color:var(--text-muted);">Movie Ticket:</span>
-                            <span style="color:#fff;">Rs. <?= number_format($movie['price'], 2) ?> / seat</span>
+                            <span style="color:var(--text-muted);">Std Price:</span>
+                            <span style="color:#fff;">Rs. <?= number_format($movie['price'], 2) ?></span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+                            <span style="color:var(--text-muted);">VIP (Row A) Extra:</span>
+                            <span style="color:#fbbf24;">+ Rs. <?= number_format($vip_extra_fee, 2) ?></span>
                         </div>
                         <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
                             <span style="color:var(--text-muted);">Selected Seats:</span>
@@ -610,28 +463,27 @@ include 'includes/header.php';
                         </div>
                     </div>
 
-                    <!-- Payment Box -->
-                    <form method="POST" id="bookingForm" onsubmit="return validateBooking();">
+                    <form method="POST" id="bookingForm" enctype="multipart/form-data" onsubmit="return validateBooking();">
                         <input type="hidden" name="selected_seats" id="selected_seats_input">
                         <input type="hidden" name="show_time" value="<?= htmlspecialchars($selected_showtime) ?>">
 
                         <div style="background: #090d16; border-radius: var(--radius-md); padding: 16px; border: 1px solid var(--border-color); margin-bottom: 18px; text-align: center;">
                             <p style="font-size: 13px; font-weight: 700; color: #38bdf8; margin-bottom: 10px;">
-                                <i class="fa-solid fa-qrcode"></i> Instant Scan & Pay (eSewa / Khalti)
+                                <i class="fa-solid fa-qrcode"></i> Scan & Upload Payment SS
                             </p>
                             
-                            <!-- Dynamic QR preview -->
-                            <img id="qrCodeImg" src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=CinemaWorld_Movie_<?= $movie['id'] ?>" alt="Payment QR" style="width: 130px; height: 130px; border-radius: 8px; background: #fff; padding: 4px; border: 2px solid var(--accent); margin: 0 auto 10px; display: block;">
+                            <!-- यहाँ तपाईंको वास्तविक QR कोड सेट गरिएको छ -->
+                            <img id="qrCodeImg" src="uploads/payments/qr.jpg" alt="Payment QR" style="width: 120px; height: 120px; border-radius: 8px; background: #fff; padding: 4px; border: 2px solid var(--accent); margin: 0 auto 10px; display: block;">
 
-                            <span style="font-size: 11px; color: var(--text-dim); display: block; margin-bottom: 10px;">
-                                Scan with eSewa / Khalti / Mobile Banking App
+                            <span style="font-size: 11px; color: var(--text-dim); display: block; margin-bottom: 12px;">
+                                Scan via eSewa/Khalti and upload screenshot below
                             </span>
 
-                            <div class="form-group" style="margin-bottom: 0;">
-                                <label class="form-label" style="font-size: 12px;">Transaction / Ref ID <span style="color: #fb7185;">*</span></label>
-                                <input type="text" name="transaction_id" class="form-control" placeholder="e.g. TXN-8924018" required style="font-size: 13px; padding: 10px;">
+                            <div class="form-group" style="margin-bottom: 0; text-align: left;">
+                                <label class="form-label" style="font-size: 12px;">Upload Payment Screenshot <span style="color: #fb7185;">*</span></label>
+                                <input type="file" name="payment_screenshot" class="form-control" accept="image/*" required style="font-size: 12px; padding: 8px; background: #141b2d;">
                             </div>
-                            <input type="hidden" name="payment_method" value="eSewa / Khalti QR">
+                            <input type="hidden" name="payment_method" value="eSewa / Khalti QR Screenshot">
                         </div>
 
                         <button type="submit" name="confirm_booking" id="btnSubmitBooking" class="btn btn-accent" style="width: 100%; padding: 14px; font-size: 15px;" disabled>
@@ -648,7 +500,8 @@ include 'includes/header.php';
 </main>
 
 <script>
-const unitPrice = <?= floatval($movie['price']) ?>;
+const basePrice = <?= floatval($movie['price']) ?>;
+const vipExtraFee = <?= floatval($vip_extra_fee) ?>;
 const movieId = <?= intval($movie['id']) ?>;
 let selectedSeats = [];
 
@@ -671,7 +524,6 @@ function updateSummary() {
     const seatsDisplay = document.getElementById('summarySeatsDisplay');
     const totalDisplay = document.getElementById('summaryTotalDisplay');
     const btnSubmit = document.getElementById('btnSubmitBooking');
-    const qrImg = document.getElementById('qrCodeImg');
 
     if (selectedSeats.length === 0) {
         seatsInput.value = '';
@@ -684,20 +536,25 @@ function updateSummary() {
     } else {
         const sorted = [...selectedSeats].sort();
         const joined = sorted.join(', ');
-        const total = (selectedSeats.length * unitPrice).toFixed(2);
+        
+        let calculatedTotal = 0;
+        selectedSeats.forEach(seat => {
+            if (seat.startsWith('A')) {
+                calculatedTotal += (basePrice + vipExtraFee);
+            } else {
+                calculatedTotal += basePrice;
+            }
+        });
+
+        const totalStr = calculatedTotal.toFixed(2);
 
         seatsInput.value = joined;
         seatsDisplay.innerText = `${joined} (${selectedSeats.length})`;
-        totalDisplay.innerText = `Rs. ${total}`;
+        totalDisplay.innerText = `Rs. ${totalStr}`;
         btnSubmit.disabled = false;
-        btnSubmit.innerHTML = `<i class="fa-solid fa-circle-check"></i> Pay & Confirm Rs. ${total}`;
+        btnSubmit.innerHTML = `<i class="fa-solid fa-circle-check"></i> Upload SS & Confirm Rs. ${totalStr}`;
         btnSubmit.classList.remove('btn-outline');
         btnSubmit.classList.add('btn-accent');
-
-        // Update QR code data string
-        if (qrImg) {
-            qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=CinemaWorld_Pay_Rs${total}_Movie${movieId}_Seats_${encodeURIComponent(joined)}`;
-        }
     }
 }
 
@@ -709,6 +566,5 @@ function validateBooking() {
     return true;
 }
 </script>
->>>>>>> b272aa372d89b77b743fc0244c37faf76bb97987
 
 <?php include 'includes/footer.php'; ?>
