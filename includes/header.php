@@ -350,6 +350,7 @@ $current_script = basename($_SERVER['PHP_SELF']);
     function openModal(modalId) {
         document.getElementById(modalId).style.display = 'flex';
     }
+
     function closeModal(modalId) {
         document.getElementById(modalId).style.display = 'none';
     }
