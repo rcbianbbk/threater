@@ -20,6 +20,16 @@
 
 ---
 
+### 📊 Professional Metrics & Highlights
+| Metric | Achievement / Focus Area |
+| :--- | :--- |
+| **Design Systems** | Scalable, component-driven UI kits built for consistency and high-speed delivery |
+| **User Experience** | Intuitive wireframes and conversion-focused user journeys |
+| **Visual Architecture** | High-end typography, vector art, and executive brand identity systems |
+| **Workflow Efficiency** | Seamless handoff protocols bridging design frameworks with clean frontend code |
+
+---
+
 ### 🛠️ Expertise & Toolset
 
 | Category | Skills & Tools |
