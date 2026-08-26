@@ -1,30 +1,36 @@
 <?php
-$page_title = "Admin Login";
+session_start();
 include 'db.php';
 
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
-
-// If already logged in as admin, redirect to dashboard
-if (isset($_SESSION['admin'])) {
-    header("Location: dashboard.php");
-    exit();
-}
-
-$error = "";
-
-if (isset($_POST['login'])) {
-    $username = trim($_POST['username']);
+$error = '';
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $email = trim($_POST['email']);
     $password = $_POST['password'];
 
-    // Admin authentication
-    if ($username === 'admin' && $password === 'admin123') {
-        $_SESSION['admin'] = true;
-        header("Location: dashboard.php");
-        exit();
+    if (!empty($email) && !empty($password)) {
+        // युजर खोज्ने (तपाईँको युजर टेबलको नाम 'users' वा उपयुक्त नाम राख्नुहोला)
+        $stmt = $conn->prepare("SELECT id, name, password FROM users WHERE email = ?");
+        $stmt->bind_param("s", $email);
+        $stmt->execute();
+        $result = $stmt->get_result();
+
+        if ($result && $result->num_rows === 1) {
+            $user = $result->fetch_assoc();
+            // पासवर्ड जाँच गर्ने (यदि password hash गरिएको छ भने password_verify प्रयोग हुन्छ)
+            if (password_verify($password, $user['password']) || $password === $user['password']) {
+                $_SESSION['user_id'] = $user['id'];
+                $_SESSION['user_name'] = $user['name'];
+                header("Location: index.php");
+                exit();
+            } else {
+                $error = "ግलत पासवर्ड! कृपया फेري प्रयास गर्नुहोस्।";
+            }
+        } else {
+            $error = "यो इमेलबाट कुनै खाता फेला परेन।";
+        }
+        $stmt->close();
     } else {
-        $error = "Invalid administrator credentials!";
+        $error = "सबै क्षेत्रहरू भर्नुहोस्।";
     }
 }
 ?>
@@ -33,56 +39,54 @@ if (isset($_POST['login'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Portal - Cinema World</title>
-    <!-- Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
-    <link rel="stylesheet" href="assets/css/main.css">
+    <title>Client Login - Theater App</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: #0c0c0c; color: #fff; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+        .login-card { background: #141414; border: 1px solid rgba(212,175,55,0.3); border-radius: 16px; width: 100%; max-width: 420px; padding: 40px; box-shadow: 0 20px 40px rgba(0,0,0,0.8); position: relative; }
+        .icon-box { width: 65px; height: 65px; background: rgba(212,175,55,0.15); color: #d4af37; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 26px; margin: 0 auto 20px auto; }
+        h2 { text-align: center; font-size: 24px; font-weight: 700; letter-spacing: 1px; margin-bottom: 25px; color: #fff; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; font-size: 13px; color: #aaa; margin-bottom: 8px; font-weight: 500; }
+        input { width: 100%; padding: 14px 16px; background: #1f1f1f; border: 1px solid rgba(255,255,255,0.1); color: #fff; border-radius: 10px; outline: none; font-size: 14px; transition: 0.3s; }
+        input:focus { border-color: #d4af37; box-shadow: 0 0 8px rgba(212,175,55,0.2); }
+        .btn-submit { width: 100%; background: linear-gradient(135deg, #d4af37, #aa8c2c); color: #000; border: none; padding: 14px; border-radius: 10px; font-weight: 700; font-size: 15px; cursor: pointer; transition: 0.3s; margin-top: 10px; box-shadow: 0 4px 15px rgba(212,175,55,0.3); }
+        .btn-submit:hover { opacity: 0.9; transform: translateY(-1px); }
+        .error-msg { background: rgba(229,9,20,0.15); border: 1px solid rgba(229,9,20,0.3); color: #ff5252; padding: 10px; border-radius: 8px; font-size: 13px; text-align: center; margin-bottom: 20px; }
+        .back-link { text-align: center; margin-top: 20px; font-size: 13px; color: #888; }
+        .back-link a { color: #d4af37; text-decoration: none; font-weight: 600; }
+        .back-link a:hover { text-decoration: underline; }
+    </style>
 </head>
-<body style="display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px;">
+<body>
 
-    <div class="glass-card" style="width: 100%; max-width: 420px; padding: 40px 35px; border-color: rgba(99,102,241,0.3); box-shadow: 0 0 35px rgba(99,102,241,0.2);">
-        
-        <div style="text-align: center; margin-bottom: 28px;">
-            <div style="width: 60px; height: 60px; border-radius: 16px; background: rgba(99,102,241,0.15); color: #818cf8; display: flex; align-items: center; justify-content: center; font-size: 26px; margin: 0 auto 16px;">
-                <i class="fa-solid fa-shield-halved"></i>
-            </div>
-            <h2 style="font-size: 24px; margin-bottom: 4px;">Admin Portal</h2>
-            <p style="color: var(--text-muted); font-size: 13px;">Authorized personnel cinema management</p>
+    <div class="login-card">
+        <div class="icon-box">
+            <i class="fa-solid fa-user"></i>
         </div>
+        <h2>CLIENT LOGIN</h2>
 
-        <?php if(!empty($error)): ?>
-            <div class="alert alert-danger">
-                <i class="fa-solid fa-triangle-exclamation"></i> <?= $error ?>
-            </div>
+        <?php if (!empty($error)): ?>
+            <div class="error-msg"><i class="fa-solid fa-circle-exclamation"></i> <?= $error ?></div>
         <?php endif; ?>
 
-        <form method="POST">
+        <form action="login.php" method="POST">
             <div class="form-group">
-                <label class="form-label"><i class="fa-solid fa-user-shield"></i> Username</label>
-                <input type="text" name="username" class="form-control" placeholder="admin" required autofocus>
+                <label>Email Address</label>
+                <input type="email" name="email" required placeholder="bibek@gmail.com">
             </div>
 
             <div class="form-group">
-                <label class="form-label"><i class="fa-solid fa-key"></i> Password</label>
-                <input type="password" name="password" class="form-control" placeholder="••••••••" required>
+                <label>Password</label>
+                <input type="password" name="password" required placeholder="••••••••">
             </div>
 
-            <div style="background: rgba(99,102,241,0.1); border: 1px dashed rgba(99,102,241,0.3); border-radius: 8px; padding: 10px; font-size: 12px; color: #a5b4fc; margin-bottom: 18px;">
-                <i class="fa-solid fa-circle-info"></i> Demo credentials: <strong>admin</strong> / <strong>admin123</strong>
-            </div>
-
-            <button type="submit" name="login" class="btn btn-accent btn-lg" style="width: 100%;">
-                <i class="fa-solid fa-right-to-bracket"></i> Login to Dashboard
-            </button>
+            <button type="submit" class="btn-submit">Login to Account</button>
         </form>
 
-        <div style="text-align: center; margin-top: 20px;">
-            <a href="index.php" style="color: var(--text-dim); font-size: 13px;">
-                <i class="fa-solid fa-arrow-left"></i> Return to Main Website
-            </a>
+        <div class="back-link">
+            खाता छैन? <a href="register.php">नयाँ रेजिस्टर गर्नुहोस्</a> | <a href="index.php">होमपेजमा फर्कनुहोस्</a>
         </div>
     </div>
 

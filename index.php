@@ -1,6 +1,11 @@
 <?php
 $page_title = "Home - Now Showing";
 include 'db.php';
+
+// Session start गर्ने (यदि गरिएको छैन भने)
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 include 'includes/header.php';
 
 // Fetch movies grouped by status
@@ -25,6 +30,9 @@ if ($all_genres_res) {
         }
     }
 }
+
+// Check if user is logged in
+$is_logged_in = isset($_SESSION['user_id']) ? 'true' : 'false';
 ?>
 
 <main style="background-color: #0c0c0c; color: #e5e5e5; min-height: 100vh;">
@@ -54,7 +62,7 @@ if ($all_genres_res) {
                 </p>
                 
                 <div style="display: flex; flex-wrap: wrap; gap: 14px; align-items: center;">
-                    <a href="book.php?movie_id=<?= $featured_movie['id'] ?>" class="btn btn-accent btn-lg" style="background: #e50914; color: #fff; border: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; text-decoration: none;">
+                    <a href="book.php?movie_id=<?= $featured_movie['id'] ?>" onclick="handleBooking(event, this.href)" class="btn btn-accent btn-lg" style="background: #e50914; color: #fff; border: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; text-decoration: none;">
                         <i class="fa-solid fa-ticket"></i> Book Tickets Now (Rs. <?= number_format($featured_movie['price'], 2) ?>)
                     </a>
                     <?php if(!empty($featured_movie['trailer_url'])): ?>
@@ -67,51 +75,6 @@ if ($all_genres_res) {
         </div>
     </section>
     <?php endif; ?>
-
-    <!-- Experience Highlights Strip -->
-    <section class="container" style="margin-bottom: 45px;">
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px;">
-            <div style="background: #141414; border: 1px solid rgba(229,9,20,0.2); border-radius: 12px; padding: 18px 22px; display: flex; align-items: center; gap: 16px;">
-                <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(229,9,20,0.15); display:flex; align-items:center; justify-content:center; color:#e50914; font-size: 22px;">
-                    <i class="fa-solid fa-video"></i>
-                </div>
-                <div>
-                    <h4 style="font-size: 15px; margin-bottom: 2px; color: #fff;">4K Laser Cinema</h4>
-                    <p style="font-size: 12px; color: #999;">Crystal ultra-sharp projection</p>
-                </div>
-            </div>
-
-            <div style="background: #141414; border: 1px solid rgba(229,9,20,0.2); border-radius: 12px; padding: 18px 22px; display: flex; align-items: center; gap: 16px;">
-                <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(255,215,0,0.15); display:flex; align-items:center; justify-content:center; color:#ffd700; font-size: 22px;">
-                    <i class="fa-solid fa-volume-high"></i>
-                </div>
-                <div>
-                    <h4 style="font-size: 15px; margin-bottom: 2px; color: #fff;">Dolby Atmos 360°</h4>
-                    <p style="font-size: 12px; color: #999;">Spatial surround soundscape</p>
-                </div>
-            </div>
-
-            <div style="background: #141414; border: 1px solid rgba(229,9,20,0.2); border-radius: 12px; padding: 18px 22px; display: flex; align-items: center; gap: 16px;">
-                <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(229,9,20,0.15); display:flex; align-items:center; justify-content:center; color:#e50914; font-size: 22px;">
-                    <i class="fa-solid fa-couch"></i>
-                </div>
-                <div>
-                    <h4 style="font-size: 15px; margin-bottom: 2px; color: #fff;">Luxury Recliners</h4>
-                    <p style="font-size: 12px; color: #999;">Ergonomic VIP comfort</p>
-                </div>
-            </div>
-
-            <div style="background: #141414; border: 1px solid rgba(229,9,20,0.2); border-radius: 12px; padding: 18px 22px; display: flex; align-items: center; gap: 16px;">
-                <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(255,215,0,0.15); display:flex; align-items:center; justify-content:center; color:#ffd700; font-size: 22px;">
-                    <i class="fa-solid fa-qrcode"></i>
-                </div>
-                <div>
-                    <h4 style="font-size: 15px; margin-bottom: 2px; color: #fff;">Instant E-Tickets</h4>
-                    <p style="font-size: 12px; color: #999;">Fast QR contactless check-in</p>
-                </div>
-            </div>
-        </div>
-    </section>
 
     <!-- Search & Filter Controls -->
     <section class="container" id="movies" style="margin-bottom: 30px;">
@@ -164,9 +127,6 @@ if ($all_genres_res) {
                                     <span>•</span>
                                     <span><i class="fa-regular fa-clock"></i> <?= $m['duration'] ?>m</span>
                                 </div>
-                                <p style="color: #888; font-size: 13px; margin-bottom: 14px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
-                                    <?= htmlspecialchars($m['description'] ?: 'Experience exhilarating cinematic entertainment in our high fidelity hall.') ?>
-                                </p>
                             </div>
 
                             <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 12px;">
@@ -180,7 +140,7 @@ if ($all_genres_res) {
                                             <i class="fa-solid fa-play" style="color: #e50914;"></i>
                                         </button>
                                     <?php endif; ?>
-                                    <a href="book.php?movie_id=<?= $m['id'] ?>" style="background: #e50914; color: #fff; padding: 6px 12px; border-radius: 6px; text-decoration: none; font-size: 12px; font-weight: 600;">
+                                    <a href="book.php?movie_id=<?= $m['id'] ?>" onclick="handleBooking(event, this.href)" style="background: #e50914; color: #fff; padding: 6px 12px; border-radius: 6px; text-decoration: none; font-size: 12px; font-weight: 600;">
                                         <i class="fa-solid fa-ticket"></i> Book
                                     </a>
                                 </div>
@@ -192,22 +152,19 @@ if ($all_genres_res) {
                 <div style="grid-column: 1/-1; text-align: center; padding: 60px 20px; background: #141414; border-radius: 12px;">
                     <i class="fa-solid fa-film" style="font-size: 40px; color: #555; margin-bottom: 12px;"></i>
                     <h3 style="color: #fff;">No Movies Currently Showing</h3>
-                    <p style="color: #888; margin-top: 6px;">Please check back soon or explore our upcoming titles.</p>
                 </div>
             <?php endif; ?>
         </div>
         <div id="noSearchMatches" style="display:none; text-align:center; padding:50px; background:#141414; border-radius:12px; margin-top:20px;">
-            <i class="fa-solid fa-magnifying-glass" style="font-size:36px; color:#555; margin-bottom:10px;"></i>
             <h3 style="color: #fff;">No matching movies found</h3>
-            <p style="color: #888;">Try searching with different keywords or clearing the genre filter.</p>
         </div>
     </section>
 </main>
 
 <!-- Trailer Modal Popup -->
 <div id="trailerModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 99999; align-items: center; justify-content: center; backdrop-filter: blur(8px);">
-    <div style="position: relative; width: 90%; max-width: 800px; background: #141414; border: 1px solid rgba(229,9,20,0.4); border-radius: 12px; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.9);">
-        <div style="padding: 14px 20px; background: #1f1f1f; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1);">
+    <div style="position: relative; width: 90%; max-width: 800px; background: #141414; border: 1px solid rgba(229,9,20,0.4); border-radius: 12px; overflow: hidden;">
+        <div style="padding: 14px 20px; background: #1f1f1f; display: flex; justify-content: space-between; align-items: center;">
             <h3 id="trailerTitle" style="color: #fff; font-size: 16px; margin: 0;">Movie Trailer</h3>
             <button onclick="closeTrailer()" style="background: transparent; border: none; color: #fff; font-size: 20px; cursor: pointer;"><i class="fa-solid fa-xmark"></i></button>
         </div>
@@ -217,7 +174,112 @@ if ($all_genres_res) {
     </div>
 </div>
 
+<!-- Sign In Required Popup Modal -->
+<div id="loginPromptModal" style="display:none; position:fixed; inset:0; z-index:999999; background:rgba(0,0,0,0.85); backdrop-filter:blur(10px); align-items:center; justify-content:center; padding:20px;">
+    <div style="background:#0f1420; border:1px solid rgba(255,255,255,0.15); border-radius:20px; width:100%; max-width:420px; padding:35px; text-align:center; box-shadow:0 25px 50px rgba(0,0,0,0.7);">
+        <div style="width:65px; height:65px; background:rgba(229,9,20,0.15); border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 20px auto; color:#e50914; font-size:26px;">
+            <i class="fa-solid fa-lock"></i>
+        </div>
+        <h3 style="color:#fff; font-size:22px; margin:0 0 10px 0; font-weight: 700;">Sign In Required</h3>
+        <p style="color:#94a3b8; font-size:14px; margin:0 0 25px 0; line-height:1.5;">टिकट बुक गर्नको लागि कृपया क्लाइन्ट खातामा लगइन गर्नुहोस् वा नयाँ खाता बनाउनुहोस्।</p>
+        
+        <div style="display:flex; gap:12px; flex-direction: column;">
+            <!-- यो बटनमा क्लिक गर्दा सिधै तलको Client Login Modal खुल्नेछ -->
+            <button onclick="openClientLoginModal()" style="background:#e50914; color:#fff; border:none; padding:12px; border-radius:12px; font-weight:700; font-size:14px; display:block; width:100%; cursor:pointer;">
+                <i class="fa-solid fa-right-to-bracket"></i> Sign In to Client Portal
+            </button>
+            <a href="register.php" style="background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15); color:#fff; text-decoration:none; padding:12px; border-radius:12px; font-weight:600; font-size:14px; display:block;">
+                <i class="fa-solid fa-user-plus"></i> Create Client Account
+            </a>
+            <button onclick="closeLoginPrompt()" style="background:transparent; border:none; color:#888; font-size:13px; cursor:pointer; margin-top:5px;">
+                Cancel / Close
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Client Login Popup Modal (तपाईंले मागेको डिजाइन अनुसार) -->
+<div id="clientLoginModal" style="display:none; position:fixed; inset:0; z-index:9999999; background:rgba(0,0,0,0.85); backdrop-filter:blur(10px); align-items:center; justify-content:center; padding:20px;">
+    <div style="background:#141414; border:1px solid rgba(212,175,55,0.4); border-radius:16px; width:100%; max-width:400px; padding:40px; box-shadow:0 15px 35px rgba(0,0,0,0.8); position:relative;">
+        
+        <!-- Close Button -->
+        <button onclick="closeClientLoginModal()" style="position:absolute; top:15px; right:15px; background:transparent; border:none; color:#fff; font-size:18px; cursor:pointer;"><i class="fa-solid fa-xmark"></i></button>
+
+        <div style="text-align:center; margin-bottom:25px;">
+            <div style="width:60px; height:60px; background:rgba(212,175,55,0.15); color:#d4af37; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:24px; margin:0 auto 15px auto;">
+                <i class="fa-solid fa-user"></i>
+            </div>
+            <h2 style="color:#fff; font-size:22px; font-weight:700; letter-spacing: 1px; margin-bottom:5px;">CLIENT LOGIN</h2>
+        </div>
+
+        <form action="login_process.php" method="POST">
+            <div style="margin-bottom:18px;">
+                <label style="display:block; font-size:13px; color:#aaa; margin-bottom:6px; font-weight:500;">Email Address</label>
+                <input type="email" name="email" required placeholder="bibek@gmail.com" style="width:100%; padding:12px 16px; background:#1f1f1f; border:1px solid rgba(255,255,255,0.1); color:#fff; border-radius:8px; outline:none; font-size:14px;">
+            </div>
+
+            <div style="margin-bottom:24px;">
+                <label style="display:block; font-size:13px; color:#aaa; margin-bottom:6px; font-weight:500;">Password</label>
+                <input type="password" name="password" required placeholder="••••••••" style="width:100%; padding:12px 16px; background:#1f1f1f; border:1px solid rgba(255,255,255,0.1); color:#fff; border-radius:8px; outline:none; font-size:14px;">
+            </div>
+
+            <button type="submit" style="width:100%; background:linear-gradient(135deg, #d4af37, #aa8c2c); color:#000; border:none; padding:12px; border-radius:8px; font-weight:700; font-size:15px; cursor:pointer; box-shadow: 0 4px 12px rgba(212,175,55,0.3);">
+                Login
+            </button>
+        </form>
+    </div>
+</div>
+
 <script>
+const isLoggedIn = <?= $is_logged_in ?>;
+
+function handleBooking(event, targetUrl) {
+    if (!isLoggedIn) {
+        event.preventDefault();
+        document.getElementById('loginPromptModal').style.display = 'flex';
+        return false;
+    }
+}
+
+function closeLoginPrompt() {
+    document.getElementById('loginPromptModal').style.display = 'none';
+}
+
+// Client Login Modal खोल्ने र बन्द गर्ने फंक्सनहरू
+function openClientLoginModal() {
+    document.getElementById('loginPromptModal').style.display = 'none';
+    document.getElementById('clientLoginModal').style.display = 'flex';
+}
+
+function closeClientLoginModal() {
+    document.getElementById('clientLoginModal').style.display = 'none';
+}
+
+// पेज लोड हुँदा लोकेसन एक्सेस माग्ने र लगइन नभएमा पपअप देखाउने
+window.addEventListener('DOMContentLoaded', (event) => {
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            function(position) {
+                checkAndShowLoginPopup();
+            },
+            function(error) {
+                checkAndShowLoginPopup();
+            },
+            { timeout: 10000 }
+        );
+    } else {
+        checkAndShowLoginPopup();
+    }
+});
+
+function checkAndShowLoginPopup() {
+    if (!isLoggedIn) {
+        setTimeout(() => {
+            document.getElementById('loginPromptModal').style.display = 'flex';
+        }, 1000);
+    }
+}
+
 let currentGenre = 'All';
 
 function filterGenre(genre, btnElement) {
