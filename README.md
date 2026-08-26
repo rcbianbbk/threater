@@ -1,58 +1,64 @@
-<h1 align="center">Hi 👋, I'm Your Name</h1>
-<h3 align="center">A passionate developer from Your Country 🚀</h3>
+<h1 align="center">Hi 👋, I'm Bibek Pathak</h1>
+<h3 align="center">Master UI/UX & Graphics Architect ✨</h3>
 
 <p align="center">
-  <img src="https://komarev.com/ghpvc/?username=YOUR-GITHUB-USERNAME&color=blue&style=flat-square" alt="Profile View Counter" />
-  <a href="https://github.com/YOUR-GITHUB-USERNAME">
-    <img src="https://img.shields.io/github/followers/YOUR-GITHUB-USERNAME?label=Follow&style=flat-square" alt="Followers" />
+  <img src="https://komarev.com/ghpvc/?username=rcbianbbk&color=f43f5e&style=flat-square" alt="Profile View Counter" />
+  <a href="https://github.com/rcbianbbk">
+    <img src="https://img.shields.io/github/followers/rcbianbbk?label=Follow&style=flat-square" alt="Followers" />
   </a>
 </p>
 
 ---
 
 ### 🔭 About Me
-* 🌱 I’m currently learning...
-* 👯 I’m looking to collaborate on...
-* 💬 Ask me about...
-* 📫 How to reach me: your.email@example.com
+* 🎨 Passionate UI/UX designer and graphics creator focused on transforming complex problems into graceful, intuitive, and luxurious digital solutions.
+* 🚀 Crafting bespoke user interfaces, high-end design systems, and executive brand identities.
+* 📍 Based in **Nepal**.
+* 📫 Reach me directly at **rcbian.bbk@gmail.com** or via phone/WhatsApp at **+977 9816811009**.
 
 ---
 
-### 🛠️ Tech Stack & Tools
+### 🛠️ Design & Tech Stack
 <p>
+  <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/figma/figma-original.svg" width="40" height="40" alt="Figma" />
+  <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/html5/html5-original.svg" width="40" height="40" alt="HTML5" />
+  <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/css3/css3-original.svg" width="40" height="40" alt="CSS3" />
   <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/javascript/javascript-original.svg" width="40" height="40" alt="JavaScript" />
-  <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/typescript/typescript-original.svg" width="40" height="40" alt="TypeScript" />
-  <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/react/react-original.svg" width="40" height="40" alt="React" />
-  <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/nodejs/nodejs-original.svg" width="40" height="40" alt="Node.js" />
-  <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/php/php-original.svg" width="40" height="40" alt="PHP" />
-  <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/mysql/mysql-original.svg" width="40" height="40" alt="MySQL" />
   <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/git/git-original.svg" width="40" height="40" alt="Git" />
 </p>
+
+* **Core Competencies:** Advanced UI/UX Architecture, Prototyping, Executive Brand Identity, High-End Vector Art, Responsive Web Design, Visual Storytelling.
 
 ---
 
 ### 📊 GitHub Stats
 
 <p align="center">
-  <img src="https://github-readme-stats.vercel.app/api?username=YOUR-GITHUB-USERNAME&show_icons=true&theme=radical" alt="GitHub Stats" />
+  <img src="https://github-readme-stats.vercel.app/api?username=rcbianbbk&show_icons=true&theme=radical" alt="GitHub Stats" />
 </p>
 
 <p align="center">
-  <img src="https://github-readme-streak-stats.herokuapp.com/?user=YOUR-GITHUB-USERNAME&theme=radical" alt="GitHub Streak" />
+  <img src="https://github-readme-streak-stats.herokuapp.com/?user=rcbianbbk&theme=radical" alt="GitHub Streak" />
 </p>
 
 <p align="center">
-  <img src="https://github-readme-stats.vercel.app/api/top-langs/?username=YOUR-GITHUB-USERNAME&layout=compact&theme=radical" alt="Top Languages" />
+  <img src="https://github-readme-stats.vercel.app/api/top-langs/?username=rcbianbbk&layout=compact&theme=radical" alt="Top Languages" />
 </p>
 
 ---
 
-### connect with me:
+### 🌐 Connect With Me
 <p align="left">
-  <a href="https://linkedin.com/in/your-linkedin-username" target="_blank">
-    <img src="https://img.shields.io/badge/LinkedIn-%230077B5.svg?style=for-the-badge&logo=linkedin&logoColor=white" alt="LinkedIn" />
+  <a href="https://www.instagram.com/cric.bbk_/" target="_blank">
+    <img src="https://img.shields.io/badge/Instagram-%23E4405F.svg?style=for-the-badge&logo=instagram&logoColor=white" alt="Instagram" />
   </a>
-  <a href="https://twitter.com/your-twitter-handle" target="_blank">
-    <img src="https://img.shields.io/badge/Twitter-%231DA1F2.svg?style=for-the-badge&logo=Twitter&logoColor=white" alt="Twitter" />
+  <a href="https://www.facebook.com/rcbian.bbk18" target="_blank">
+    <img src="https://img.shields.io/badge/Facebook-%231877F2.svg?style=for-the-badge&logo=facebook&logoColor=white" alt="Facebook" />
+  </a>
+  <a href="https://www.tiktok.com/@favqrm" target="_blank">
+    <img src="https://img.shields.io/badge/TikTok-%23000000.svg?style=for-the-badge&logo=tiktok&logoColor=white" alt="TikTok" />
+  </a>
+  <a href="https://x.com/rcbianbbk" target="_blank">
+    <img src="https://img.shields.io/badge/X-%23000000.svg?style=for-the-badge&logo=x&logoColor=white" alt="X" />
   </a>
 </p>
