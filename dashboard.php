@@ -75,6 +75,13 @@ $active_movies = $active_movies_res ? $active_movies_res->fetch_assoc()['cnt'] :
 $total_users_res = $conn->query("SELECT COUNT(*) as cnt FROM users");
 $total_users = $total_users_res ? $total_users_res->fetch_assoc()['cnt'] : 0;
 
+$bookings = $conn->query("
+    SELECT b.*, u.name as user_name, u.email as user_email, m.title as movie_title 
+    FROM bookings b
+    JOIN users u ON b.user_id = u.id
+    JOIN movies m ON b.movie_id = m.id
+    ORDER BY b.id DESC
+");
 // Data Fetching
 $movies = $conn->query("SELECT * FROM movies ORDER BY id DESC");
 $bookings = $conn->query("

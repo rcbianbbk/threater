@@ -184,7 +184,6 @@ $is_logged_in = isset($_SESSION['user_id']) ? 'true' : 'false';
         <p style="color:#94a3b8; font-size:14px; margin:0 0 25px 0; line-height:1.5;">टिकट बुक गर्नको लागि कृपया क्लाइन्ट खातामा लगइन गर्नुहोस् वा नयाँ खाता बनाउनुहोस्।</p>
         
         <div style="display:flex; gap:12px; flex-direction: column;">
-            <!-- यो बटनमा क्लिक गर्दा सिधै तलको Client Login Modal खुल्नेछ -->
             <button onclick="openClientLoginModal()" style="background:#e50914; color:#fff; border:none; padding:12px; border-radius:12px; font-weight:700; font-size:14px; display:block; width:100%; cursor:pointer;">
                 <i class="fa-solid fa-right-to-bracket"></i> Sign In to Client Portal
             </button>
@@ -198,11 +197,10 @@ $is_logged_in = isset($_SESSION['user_id']) ? 'true' : 'false';
     </div>
 </div>
 
-<!-- Client Login Popup Modal (तपाईंले मागेको डिजाइन अनुसार) -->
+<!-- Client Login Popup Modal -->
 <div id="clientLoginModal" style="display:none; position:fixed; inset:0; z-index:9999999; background:rgba(0,0,0,0.85); backdrop-filter:blur(10px); align-items:center; justify-content:center; padding:20px;">
     <div style="background:#141414; border:1px solid rgba(212,175,55,0.4); border-radius:16px; width:100%; max-width:400px; padding:40px; box-shadow:0 15px 35px rgba(0,0,0,0.8); position:relative;">
         
-        <!-- Close Button -->
         <button onclick="closeClientLoginModal()" style="position:absolute; top:15px; right:15px; background:transparent; border:none; color:#fff; font-size:18px; cursor:pointer;"><i class="fa-solid fa-xmark"></i></button>
 
         <div style="text-align:center; margin-bottom:25px;">
@@ -245,7 +243,6 @@ function closeLoginPrompt() {
     document.getElementById('loginPromptModal').style.display = 'none';
 }
 
-// Client Login Modal खोल्ने र बन्द गर्ने फंक्सनहरू
 function openClientLoginModal() {
     document.getElementById('loginPromptModal').style.display = 'none';
     document.getElementById('clientLoginModal').style.display = 'flex';
@@ -255,7 +252,6 @@ function closeClientLoginModal() {
     document.getElementById('clientLoginModal').style.display = 'none';
 }
 
-// पेज लोड हुँदा लोकेसन एक्सेस माग्ने र लगइन नभएमा पपअप देखाउने
 window.addEventListener('DOMContentLoaded', (event) => {
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(

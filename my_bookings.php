@@ -36,36 +36,7 @@ include 'includes/header.php';
             <i class="fa-solid fa-plus"></i> Book Another Movie
         </a>
     </div>
-<form action="process_booking.php" method="POST" enctype="multipart/form-data" class="glass-card" style="padding: 20px;">
-    <!-- Anya fields (name, seats, etc.) -->
-    
-    <label style="color: #fff; margin-top: 15px; display: block;">Upload Payment Screenshot:</label>
-    <input type="file" name="payment_screenshot" accept="image/*" required style="margin-top: 8px; color: #fff;">
-    
-    <button type="submit" class="btn btn-accent" style="width: 100%; margin-top: 20px;">Submit Booking</button>
-</form>
-<?php
-// ... database connection code ...
 
-if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_FILES["payment_screenshot"])) {
-    $target_dir = "uploads/screenshots/";
-    // Folder chaina bhane create garne
-    if (!file_exists($target_dir)) mkdir($target_dir, 0777, true);
-    
-    $file_name = time() . "_" . basename($_FILES["payment_screenshot"]["name"]);
-    $target_file = $target_dir . $file_name;
-    
-    if (move_uploaded_file($_FILES["payment_screenshot"]["tmp_name"], $target_file)) {
-        // Screenshot upload bhayo, aba DB ma save garne
-        $sql = "INSERT INTO bookings (movie_id, user_name, total_price, payment_screenshot) VALUES (?, ?, ?, ?)";
-        $stmt = $conn->prepare($sql);
-        $stmt->bind_param("isds", $movie_id, $user_name, $price, $target_file);
-        $stmt->execute();
-        
-        echo "Booking successful! We will verify your payment soon.";
-    }
-}
-?>
     <?php if($bookings_res && $bookings_res->num_rows > 0): ?>
         <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 24px;">
             <?php while($b = $bookings_res->fetch_assoc()): 
@@ -139,11 +110,3 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_FILES["payment_screenshot"])
 </main>
 
 <?php include 'includes/footer.php'; ?>
-<form action="process_booking.php" method="POST" enctype="multipart/form-data" class="glass-card" style="padding: 20px;">
-    <!-- Anya fields (name, seats, etc.) -->
-    
-    <label style="color: #fff; margin-top: 15px; display: block;">Upload Payment Screenshot:</label>
-    <input type="file" name="payment_screenshot" accept="image/*" required style="margin-top: 8px; color: #fff;">
-    
-    <button type="submit" class="btn btn-accent" style="width: 100%; margin-top: 20px;">Submit Booking</button>
-</form>

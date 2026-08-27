@@ -92,6 +92,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['popup_user_signup']))
     }
 }
 
+// 4. Handle AJAX request to mark notifications as read
+if (isset($_GET['mark_notifications_read']) && isset($_SESSION['user_id'])) {
+    $uid = intval($_SESSION['user_id']);
+    $conn->query("UPDATE notifications SET is_read = 1 WHERE user_id = $uid");
+    echo json_encode(["status" => "success"]);
+    exit();
+}
+
 $current_user = null;
 $user_avatar_initial = "";
 
@@ -200,26 +208,30 @@ $current_script = basename($_SERVER['PHP_SELF']);
                     <div style="position: relative;">
                         <button type="button" onclick="toggleNotifDropdown()" style="width: 40px; height: 40px; border-radius: 50%; background: #1a1a1a; border: 1px solid rgba(212,175,55,0.3); color: #d4af37; display: flex; align-items: center; justify-content: center; cursor: pointer; position: relative;">
                             <i class="fa-solid fa-bell"></i>
-                            <?php if ($unread_count > 0): ?>
-                                <span style="position: absolute; top: -4px; right: -4px; background: #ff5252; color: #fff; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 50%; border: 2px solid #000;"><?= $unread_count ?></span>
-                            <?php endif; ?>
+                            <span id="notificationBadge" style="position: absolute; top: -4px; right: -4px; background: #ff5252; color: #fff; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 50%; border: 2px solid #000; display: <?= ($unread_count > 0) ? 'block' : 'none' ?>;"><?= $unread_count ?></span>
                         </button>
 
                         <!-- Dropdown Box -->
                         <div id="notifDropdown" style="display: none; position: absolute; right: 0; top: 50px; width: 320px; background: #121212; border: 1px solid rgba(212,175,55,0.3); border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.8); z-index: 10002; overflow: hidden;">
                             <div style="padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: space-between; align-items: center;">
                                 <span style="font-weight: 700; font-size: 14px; color: #fff; font-family: 'Cinzel', serif;">Notifications</span>
-                                <span style="font-size: 11px; color: #d4af37;"><?= $unread_count ?> unread</span>
+                                <span id="unreadTextCount" style="font-size: 11px; color: #d4af37;"><?= $unread_count ?> unread</span>
                             </div>
                             <div style="max-height: 300px; overflow-y: auto;">
                                 <?php if (empty($user_notifications)): ?>
                                     <div style="padding: 20px; text-align: center; color: #777; font-size: 13px;">No notifications yet.</div>
                                 <?php else: ?>
                                     <?php foreach ($user_notifications as $n): ?>
-                                        <div style="padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,0.05); background: <?= (isset($n['is_read']) && $n['is_read'] == 0) ? 'rgba(212,175,55,0.05)' : 'transparent' ?>;">
-                                            <p style="margin: 0 0 4px 0; font-size: 13px; color: #e5e5e5;"><?= htmlspecialchars($n['message']) ?></p>
-                                            <span style="font-size: 10px; color: #888;"><?= $n['created_at'] ?></span>
-                                        </div>
+                                        <?php 
+                                            // Make notification item clickable if booking_id exists
+                                            $notif_link = (!empty($n['booking_id'])) ? "ticket.php?id=" . $n['booking_id'] : "#";
+                                        ?>
+                                        <a href="<?= $notif_link ?>" style="text-decoration: none; display: block;">
+                                            <div class="notif-item" style="padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,0.05); background: <?= (isset($n['is_read']) && $n['is_read'] == 0) ? 'rgba(212,175,55,0.05)' : 'transparent' ?>; transition: 0.2s;" onmouseover="this.style.background='rgba(212,175,55,0.1)'" onmouseout="this.style.background='transparent'">
+                                                <p style="margin: 0 0 4px 0; font-size: 13px; color: #e5e5e5;"><?= htmlspecialchars($n['message']) ?></p>
+                                                <span style="font-size: 10px; color: #888;"><?= $n['created_at'] ?></span>
+                                            </div>
+                                        </a>
                                     <?php endforeach; ?>
                                 <?php endif; ?>
                             </div>
@@ -362,12 +374,35 @@ $current_script = basename($_SERVER['PHP_SELF']);
         }
     }
 
-    // Toggle notification dropdown box
+    // Toggle notification dropdown box and mark as read via AJAX
     function toggleNotifDropdown() {
         const dropdown = document.getElementById('notifDropdown');
         if (dropdown) {
             const isVisible = dropdown.style.display === 'block';
-            dropdown.style.display = isVisible ? 'none' : 'block';
+            if (!isVisible) {
+                dropdown.style.display = 'block';
+                
+                // Automatically send request to mark notifications as read in backend
+                const badge = document.getElementById('notificationBadge');
+                const unreadText = document.getElementById('unreadTextCount');
+                if (badge && badge.style.display !== 'none') {
+                    fetch('?mark_notifications_read=1')
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.status === 'success') {
+                                badge.style.display = 'none';
+                                if (unreadText) unreadText.innerText = '0 unread';
+                                // Remove unread styling from notification items
+                                document.querySelectorAll('.notif-item').forEach(item => {
+                                    item.style.background = 'transparent';
+                                });
+                            }
+                        })
+                        .catch(err => console.error('Error marking notifications read:', err));
+                }
+            } else {
+                dropdown.style.display = 'none';
+            }
         }
     }
 
@@ -418,7 +453,7 @@ $current_script = basename($_SERVER['PHP_SELF']);
                     const lon = position.coords.longitude;
                     try {
                         const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`);
-                        const data = await response.json();
+                        const data = asynchronouslyResponse = await response.json(); // standard fetch
                         const address = data.address;
                         const city = address.city || address.town || address.village || address.state || "Unknown City";
                         locationInput.value = city;

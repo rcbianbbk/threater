@@ -1,0 +1,27 @@
+<?php
+include 'db.php';
+if (session_status() === PHP_SESSION_NONE) { session_start(); }
+
+// Recreate movies table with proper structure
+$conn->query("DROP TABLE IF EXISTS movies");
+$conn->query("CREATE TABLE movies (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    genre VARCHAR(255) NOT NULL,
+    duration VARCHAR(50) NOT NULL,
+    price DECIMAL(10,2) NOT NULL,
+    poster_url TEXT NOT NULL,
+    description TEXT,
+    status VARCHAR(50) DEFAULT 'Now Showing'
+)");
+
+// Insert movies with exact matching high-res posters
+$conn->query("INSERT INTO movies (title, genre, duration, price, poster_url, description, status) VALUES 
+('Interstellar', 'Adventure / Sci-Fi / Drama', '2h 49m', 300.00, 'https://m.media-amazon.com/images/M/MV5BZjdkOTU3MDktN2IxOS00OGEyLWFmMjktY2FiMmZkNWIyODZiXkEyXkFqcGdeQXVyMTMxODk2OTU@._V1_FMjpg_UX1000_.jpg', 'A team of explorers travel through a wormhole in space in an attempt to ensure humanity\'s survival.', 'Now Showing'),
+('Spider-Man: No Way Home', 'Action / Adventure / Sci-Fi', '2h 28m', 300.00, 'https://m.media-amazon.com/images/M/MV5BZWMyYzFjYTYtNTRjYi00OGExLWE2YzgtOGRmZjYxZjk3NzgyXkEyXkFqcGdeQXVyMTkxNjUyNQ@@._V1_FMjpg_UX1000_.jpg', 'With Spider-Man\'s identity now revealed, Peter asks Doctor Strange for help.', 'Now Showing'),
+('Oppenheimer', 'Biography / Drama / History', '3h 00m', 350.00, 'https://m.media-amazon.com/images/M/MV5BMDBmYTZjNjUtN2M1MS00MTQ2LTk2ODgtNzc2M2QyZGE5NTVjXkEyXkFqcGdeQXVyNzAwMjU2MTY@._V1_FMjpg_UX1000_.jpg', 'The story of American scientist J. Robert Oppenheimer and his role in the atomic bomb.', 'Now Showing'),
+('Avengers: Endgame', 'Action / Sci-Fi / Drama', '3h 01m', 350.00, 'https://m.media-amazon.com/images/M/MV5BMTc5MDE2ODcwNV5BMl5BanBnXkFtZTgwMzI2NzQ2NzM@._V1_FMjpg_UX1000_.jpg', 'After Thanos snapped away half of the universe, the Avengers assemble once more.', 'Now Showing')");
+
+header("Location: index.php?success=posters_updated");
+exit();
+?>

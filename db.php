@@ -3,8 +3,8 @@
 $host = "127.0.0.1";
 $user = "root";
 $pass = "";
-$db   = "theater_db";
-$port = 3306; // Adjust port if needed (3306/3307)
+$db   = "theater_db"; // Yadi timro database 'theater_app' ho vane yeta 'theater_app' banau
+$port = 3306;
 
 // Connect without database first in case it needs to be created
 $conn = @new mysqli($host, $user, $pass, "", $port);
@@ -22,13 +22,13 @@ if ($conn->connect_error) {
 $conn->query("CREATE DATABASE IF NOT EXISTS `$db` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
 $conn->select_db($db);
 
-// Helper function to check if column exists
+// Helper function to check if column exists safely
 function columnExists($conn, $table, $column) {
     $res = $conn->query("SHOW COLUMNS FROM `$table` LIKE '$column'");
     return $res && $res->num_rows > 0;
 }
 
-// Auto Schema & Migration Setup
+// Auto Schema & Migration Setup - Users table
 $conn->query("CREATE TABLE IF NOT EXISTS users (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
@@ -40,20 +40,6 @@ $conn->query("CREATE TABLE IF NOT EXISTS users (
     otp VARCHAR(10) DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-
-// Add phone/profile_image/created_at to users if missing
-if (!columnExists($conn, 'users', 'phone')) {
-    $conn->query("ALTER TABLE users ADD COLUMN phone VARCHAR(20) DEFAULT NULL AFTER email");
-}
-if (!columnExists($conn, 'users', 'profile_image')) {
-    $conn->query("ALTER TABLE users ADD COLUMN profile_image VARCHAR(255) DEFAULT NULL AFTER password");
-}
-if (!columnExists($conn, 'users', 'is_verified')) {
-    $conn->query("ALTER TABLE users ADD COLUMN is_verified TINYINT(1) DEFAULT 1 AFTER profile_image");
-}
-if (!columnExists($conn, 'users', 'created_at')) {
-    $conn->query("ALTER TABLE users ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
-}
 
 // Movies table
 $conn->query("CREATE TABLE IF NOT EXISTS movies (
@@ -71,27 +57,7 @@ $conn->query("CREATE TABLE IF NOT EXISTS movies (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
-// Add columns to movies if missing
-if (!columnExists($conn, 'movies', 'poster_image')) {
-    $conn->query("ALTER TABLE movies ADD COLUMN poster_image VARCHAR(500) DEFAULT NULL AFTER price");
-}
-if (!columnExists($conn, 'movies', 'description')) {
-    $conn->query("ALTER TABLE movies ADD COLUMN description TEXT DEFAULT NULL AFTER poster_image");
-}
-if (!columnExists($conn, 'movies', 'rating')) {
-    $conn->query("ALTER TABLE movies ADD COLUMN rating DECIMAL(2,1) DEFAULT 4.5 AFTER description");
-}
-if (!columnExists($conn, 'movies', 'trailer_url')) {
-    $conn->query("ALTER TABLE movies ADD COLUMN trailer_url VARCHAR(500) DEFAULT NULL AFTER rating");
-}
-if (!columnExists($conn, 'movies', 'show_times')) {
-    $conn->query("ALTER TABLE movies ADD COLUMN show_times VARCHAR(255) DEFAULT '10:30 AM, 02:00 PM, 05:30 PM, 08:45 PM' AFTER trailer_url");
-}
-if (!columnExists($conn, 'movies', 'status')) {
-    $conn->query("ALTER TABLE movies ADD COLUMN status ENUM('now_showing', 'coming_soon') DEFAULT 'now_showing' AFTER show_times");
-}
-
-// Bookings table
+// Bookings table with explicit primary key and columns to prevent 'Unknown column' errors
 $conn->query("CREATE TABLE IF NOT EXISTS bookings (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
@@ -107,17 +73,6 @@ $conn->query("CREATE TABLE IF NOT EXISTS bookings (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (movie_id) REFERENCES movies(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-
-// Add columns to bookings if missing
-if (!columnExists($conn, 'bookings', 'show_time')) {
-    $conn->query("ALTER TABLE bookings ADD COLUMN show_time VARCHAR(50) DEFAULT '05:30 PM' AFTER seat_number");
-}
-if (!columnExists($conn, 'bookings', 'total_amount')) {
-    $conn->query("ALTER TABLE bookings ADD COLUMN total_amount DECIMAL(10,2) NOT NULL DEFAULT 350.00 AFTER show_time");
-}
-if (!columnExists($conn, 'bookings', 'ticket_code')) {
-    $conn->query("ALTER TABLE bookings ADD COLUMN ticket_code VARCHAR(50) DEFAULT NULL AFTER transaction_id");
-}
 
 // Ensure default rich sample movies exist if database is fresh
 $check_movies = $conn->query("SELECT COUNT(*) as cnt FROM movies");
